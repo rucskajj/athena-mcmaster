@@ -351,6 +351,7 @@ void problem(DomainS *pDomain)
 
 /* enroll gravitational potential function, shearing sheet BC functions */
   ShearingBoxPot = UnstratifiedDisk;
+  ShBoxCoord = xy;
 
   if (myID_Comm_world == 0) {
     /* flush output file */

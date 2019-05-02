@@ -56,7 +56,7 @@ bc_ix1          = 4         # inner-I (X) boundary flag (periodic)
 bc_ox1          = 4         # outer-I (X) boundary flag (periodic)
 NGrid_x1        = 2         # number of MPI grids in X-direction
 
-Nx2             = 64         # Number of zones in X2-direction
+Nx2             = 640         # Number of zones in X2-direction
 x2min           = -5.000000
 x2max           =  5.000000
 bc_ix2          = 4         # inner-J (Y) boundary flag (periodic)
