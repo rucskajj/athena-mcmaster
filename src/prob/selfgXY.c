@@ -346,7 +346,7 @@ void problem(DomainS *pDomain)
 
 #ifdef SELF_GRAVITY
   four_pi_G = par_getd("problem","four_pi_G");
-  grav_mean_rho = rhog;
+  grav_mean_rho = rho0;
 #endif /* SELF_GRAVITY */
 
 /* enroll gravitational potential function, shearing sheet BC functions */
