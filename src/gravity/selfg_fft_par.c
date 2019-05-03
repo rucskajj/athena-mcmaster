@@ -64,7 +64,7 @@ void selfg_fft_par_3d(DomainS *pD)
   Real dx1sq=(pG->dx1*pG->dx1),dx2sq=(pG->dx2*pG->dx2),dx3sq=(pG->dx3*pG->dx3);
   Real dkx,dky,dkz,pcoeff;
 
-  ath_pout(0,"Made it to fft_par!\n");
+  particle_to_grid_fft(pD, property_all);
 
 #ifdef SHEARING_BOX
   Real qomt,Lx,Ly,dt;
@@ -72,7 +72,8 @@ void selfg_fft_par_3d(DomainS *pD)
   Real xmin,xmax;
   int ip,jp;
   int nx3=pG->Nx[2]+2*nghost;
-  int nx2=pG->Nx[1]+2*nghost;
+  int 
+nx2=pG->Nx[1]+2*nghost;
   int nx1=pG->Nx[0]+2*nghost;
   Real ***RollDen, ***UnRollPhi;
 
@@ -100,7 +101,7 @@ void selfg_fft_par_3d(DomainS *pD)
     for (i=is-nghost; i<=ie+nghost; i++){
       pG->Phi_old[k][j][i] = pG->Phi[k][j][i];
 #ifdef SHEARING_BOX
-      RollDen[k][i][j] = pG->U[k][j][i].d;
+      RollDen[k][i][j] = pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d;
 #endif
     }
   }}
@@ -119,7 +120,7 @@ void selfg_fft_par_3d(DomainS *pD)
 #ifdef SHEARING_BOX
         RollDen[k][i][j] - grav_mean_rho;
 #else
-        pG->U[k][j][i].d - grav_mean_rho;
+        pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d - grav_mean_rho;
 #endif
       work[F3DI(i-is,j-js,k-ks,pG->Nx[0],pG->Nx[1],pG->Nx[2])][1] = 0.0;
     }
@@ -279,5 +280,89 @@ void selfg_fft_par_3d_init(MeshS *pM)
   }
 }
 
+/*----------------------------------------------------------------------------*/
+/*! \fn void particle_to_grid(Grid *pG, PropFun_t par_prop)
+ *  \brief Bin the particles to grid cells
+ */
+void particle_to_grid_fft(DomainS *pD, PropFun_t par_prop)
+{
+  GridS *pG = pD->Grid;
+  int i,j,k, is,js,ks, i0,j0,k0, i1,j1,k1, i2,j2,k2;
+
+  /* left and right limit of grid indices */
+  int ilp,iup, jlp,jup, klp,kup;
+  /* number of neighbouring cells involved in 1D interpolation */
+  int ncell;
+  Grain_Property *grproperty;  /*!< array of particle properties of all types */
+
+  int n0 = ncell-1;
+  long p;
+  Real drho;
+  Real weight[3][3][3];
+  Real3Vect cell1;
+  GrainS *gr;
+
+  /* Get grid limit related quantities */
+  if (pG->Nx[0] > 1)  cell1.x1 = 1.0/pG->dx1;
+  else                cell1.x1 = 0.0;
+
+  if (pG->Nx[1] > 1)  cell1.x2 = 1.0/pG->dx2;
+  else                cell1.x2 = 0.0;
+
+  if (pG->Nx[2] > 1)  cell1.x3 = 1.0/pG->dx3;
+  else                cell1.x3 = 0.0;
+
+  /* initialization */
+  for (k=klp; k<=kup; k++)
+    for (j=jlp; j<=jup; j++)
+      for (i=ilp; i<=iup; i++) {
+        pG->Coup[k][j][i].grid_d = 0.0;
+        pG->Coup[k][j][i].grid_v1 = 0.0;
+        pG->Coup[k][j][i].grid_v2 = 0.0;
+        pG->Coup[k][j][i].grid_v3 = 0.0;
+      }
+
+  /* bin the particles */
+  for (p=0; p<pG->nparticle; p++) {
+    gr = &(pG->particle[p]);
+
+    /* judge if the particle should be selected */
+    if ((*par_prop)(gr, &(pG->parsub[p]))) {/* 1: true; 0: false */
+
+      getweight(pG, gr->x1, gr->x2, gr->x3, cell1, weight, &is, &js, &ks);
+
+      /* distribute particles */
+      k1 = MAX(ks, klp);    k2 = MIN(ks+n0, kup);
+      j1 = MAX(js, jlp);    j2 = MIN(js+n0, jup);
+      i1 = MAX(is, ilp);    i2 = MIN(is+n0, iup);
+
+      for (k=k1; k<=k2; k++) {
+        k0 = k-k1;
+        for (j=j1; j<=j2; j++) {
+          j0 = j-j1;
+          for (i=i1; i<=i2; i++) {
+            i0 = i-i1;
+            /* interpolate the particles to the grid */
+#ifdef FEEDBACK
+            drho = grproperty[gr->property].m;
+#else
+            drho = 1.0;
+#endif
+            pG->Coup[k][j][i].grid_d  += weight[k0][j0][i0]*drho;
+            pG->Coup[k][j][i].grid_v1 += weight[k0][j0][i0]*drho*gr->v1;
+            pG->Coup[k][j][i].grid_v2 += weight[k0][j0][i0]*drho*gr->v2;
+            pG->Coup[k][j][i].grid_v3 += weight[k0][j0][i0]*drho*gr->v3;
+
+          }
+        }
+      }
+    }
+  }
+
+/* deposit ghost zone values into the boundary zones */
+  exchange_gpcouple(pD, 0);
+
+  return;
+}
 
 #endif /* SELF_GRAVITY_USING_FFT_PAR */

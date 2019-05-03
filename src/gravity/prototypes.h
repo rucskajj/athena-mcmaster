@@ -46,6 +46,7 @@ void selfg_fft_3d_init(MeshS *pM);
 #if defined(FFT_ENABLED) && defined(SELF_GRAVITY_USING_FFT_PAR)
 void selfg_fft_par_3d(DomainS *pD);
 void selfg_fft_par_3d_init(MeshS *pM);
+void particle_to_grid_fft(DomainS *pD, PropFun_t par_prop);
 #endif /* FFT_ENABLED */
 #if defined(FFT_ENABLED) && defined(SELF_GRAVITY_USING_FFT_DISK)
 void selfg_fft_disk_1d(DomainS *pD);
