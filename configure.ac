@@ -139,6 +139,10 @@ if test   "$gravity_algorithm" = "fft"; then
   SELF_GRAVITY_DEFINE="SELF_GRAVITY"
   SELF_GRAVITY_USER="ON"
   SELF_GRAVITY_ALGORITHM="SELF_GRAVITY_USING_FFT"
+elif test   "$gravity_algorithm" = "fft_par"; then
+  SELF_GRAVITY_DEFINE="SELF_GRAVITY"
+  SELF_GRAVITY_USER="ON"
+  SELF_GRAVITY_ALGORITHM="SELF_GRAVITY_USING_FFT_PAR"
 elif test   "$gravity_algorithm" = "fft_disk"; then
   SELF_GRAVITY_DEFINE="SELF_GRAVITY"
   SELF_GRAVITY_USER="ON"
@@ -156,7 +160,7 @@ elif test "$gravity_algorithm" = "none"; then
   SELF_GRAVITY_USER="OFF"
   SELF_GRAVITY_ALGORITHM="SELF_GRAVITY_NONE"
 else
-  AC_MSG_ERROR([expected --with-gravity=fft, fft_disk, fft_obc, or multigrid])
+  AC_MSG_ERROR([expected --with-gravity=fft, fft_par, fft_disk, fft_obc, or multigrid])
 fi
 
 #-------------------------------------------------------------------------------
