@@ -308,6 +308,7 @@ void problem(DomainS *pDomain)
               pGrid->particle[p].x2 = x2p;
               pGrid->particle[p].x3 = x3p;
 
+              paramp = 0.0; // Don't want particle perturbations right now
               if ((ipert == 1) || (ipert == 2)) {
                 pGrid->particle[p].x1 += -paramp*(cos(kx*x1p)*cos(-ky*x2p) -
                                           sin(kx*x1p)*sin(-ky*x2p));
@@ -346,7 +347,7 @@ void problem(DomainS *pDomain)
 
 #ifdef SELF_GRAVITY
   four_pi_G = par_getd("problem","four_pi_G");
-  grav_mean_rho = rho0;
+  grav_mean_rho = (1+mratio)*rho0;
 #endif /* SELF_GRAVITY */
 
 /* enroll gravitational potential function, shearing sheet BC functions */
