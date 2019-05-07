@@ -106,7 +106,7 @@ void problem(DomainS *pDomain)
   Nx = pDomain->Nx[0]; /* used for particle selection function */
 
 /* Read initial conditions */
-  rho0 = 1.0;
+  rho0 = par_getd_def("problem","rho0", 1.0);
   Omega_0 = par_getd("problem","omega");
   qshear = par_getd_def("problem","qshear",1.5);
   amp = par_getd_def("problem","amp",0.0);
@@ -136,18 +136,30 @@ void problem(DomainS *pDomain)
   if (par_geti("particle","tsmode") != 3)
     ath_error("[selfgXY]: This test works only for fixed stopping time!\n");
 
+#ifdef SELF_GRAVITY
+  four_pi_G = par_getd("problem","four_pi_G");
+#endif /* SELF_GRAVITY */
+
   /* assign particle effective mass */
+mratio = par_getd_def("problem","mratio",0.0); /* total mass fraction */
 #ifdef FEEDBACK
-  mratio = par_getd_def("problem","mratio",0.0); /* total mass fraction */
+#ifdef SELF_GRAVITY
+  grav_mean_rho = (1.0+mratio)*rho0;
+#endif /* SELF_GRAVITY */
+  grproperty[0].m = rho0*mratio/Npar3;
   if (mratio < 0.0)
     ath_error("[selfgXY]: mratio must be positive!\n");
-#else
+
+#else /* Particle feedback set to passive */
+#ifdef SELF_GRAVITY
+  /* set mratio to 1, as in particle_to_grid() routine */
+  grav_mean_rho = (1.0+1.0)*rho0;
+  if (rho0 != 1.0)
+    ath_error("[selfgXY]: rho0 must be 1.0 with gravity and no feedback!\n");
+#endif /* SELF_GRAVITY */
   mratio = 0.0;
-  if ((ipert == 1) || (ipert == 2))
-    ath_error("[selfgXY]: linear growth test requires FEEDBACK to be\
- turned on!\n");
 #endif
-  amp = amp*mratio; /* N.B.! */
+  amp = amp;//*mratio; /* N.B.! */
 
   Reux  =  par_getd_def("problem","Reux",0.0)*amp;
   Imux  =  par_getd_def("problem","Imux",0.0)*amp;
@@ -168,10 +180,6 @@ void problem(DomainS *pDomain)
 
   omg  =  par_getd_def("problem","omg",0.0)*Omega_0;
   s    =  par_getd_def("problem","s"  ,0.0)*Omega_0;
-
-#ifdef FEEDBACK
-  grproperty[0].m = rho0*mratio/Npar3;
-#endif
 
   /* Adjust code units */ 
   if ((ipert == 1) || (ipert == 2))
@@ -345,10 +353,6 @@ void problem(DomainS *pDomain)
     }
   }
 
-#ifdef SELF_GRAVITY
-  four_pi_G = par_getd("problem","four_pi_G");
-  grav_mean_rho = (1+mratio)*rho0;
-#endif /* SELF_GRAVITY */
 
 /* enroll gravitational potential function, shearing sheet BC functions */
   ShearingBoxPot = UnstratifiedDisk;
@@ -446,6 +450,16 @@ static Real expr_rhodif(const GridS *pG, const int i, const int j, const int k)
   Real x1,x2,x3;
   cc_pos(pG,i,j,k,&x1,&x2,&x3);
   return (pG->U[k][j][i].d - rho0)/amp;
+}
+
+/*! \fn static Real expr_rhopar(const GridS *pG, const int i, const int j, 
+ *				   const int k)
+ *  \brief dpar */
+static Real expr_rhopar(const GridS *pG, const int i, const int j, const int k)
+{
+  Real x1,x2,x3;
+  cc_pos(pG,i,j,k,&x1,&x2,&x3);
+return pG->Coup[k][j][i].grid_d;
 }
 
 /*! \fn static Real expr_dVx(const GridS *pG, const int i, const int j, 

@@ -66,7 +66,8 @@ void selfg_fft_par_3d(DomainS *pD)
   Real dx1sq=(pG->dx1*pG->dx1),dx2sq=(pG->dx2*pG->dx2),dx3sq=(pG->dx3*pG->dx3);
   Real dkx,dky,dkz,pcoeff;
 
-  particle_to_grid_fft(pD, property_all);
+  //particle_to_grid_fft(pD, property_all);
+  particle_to_grid(pD, property_all);
 
 #ifdef SHEARING_BOX
   Real qomt,Lx,Ly,dt;
@@ -96,18 +97,30 @@ nx2=pG->Nx[1]+2*nghost;
   qomt = qshear*Omega_0*dt;
 #endif
 
+  int il, jl, kl;
+  il = pG->is;
+  jl = pG->js;
+  kl = pG->ks;
+
+  //ath_pout(0,"[fft_par] indices: [%d][%d][%d] \n", kl,jl,il);
+  ath_pout(0,"[fft_par] indices: [%d][%d][%d] \n", ke,je,ie);
+
+  //ath_pout(0,"[partogrid_fft] [%d][%d][%d] 1:  %f \n", kt,jt,it, pG->Coup[kt][jt][it].grid_d);
+
 /* Copy current potential into old */
 
   for (k=ks-nghost; k<=ke+nghost; k++){
   for (j=js-nghost; j<=je+nghost; j++){
     for (i=is-nghost; i<=ie+nghost; i++){
-      pG->Phi_old[k][j][i] = pG->Phi[k][j][i] + pG->Coup[k][j][i].grid_d;
+      pG->Phi_old[k][j][i] = pG->Phi[k][j][i];// pG->Coup[k][j][i].grid_d;
 #ifdef SHEARING_BOX
       RollDen[k][i][j] = pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d;
 
+    //  ath_pout(0,"[fft_par] indices: [%d][%d][%d] \n", kl,jl,il);
+
       //if(abs(pG->Coup[k][j][i].grid_d) < 1e-6){
-      ath_pout(0,"[fft_par] densities: %g %g\n", pG->U[k][j][i].d, 
-                                    pG->Coup[k][j][i].grid_d);
+      //ath_pout(0,"[fft_par] %d %d %d: densities: %g %g\n", k,j,i,pG->U[k][j][i].d, 
+      //                              pG->Coup[k][j][i].grid_d);
       //}
 #endif
     }
@@ -125,10 +138,16 @@ nx2=pG->Nx[1]+2*nghost;
     for (i=is; i<=ie; i++){
       work[F3DI(i-is,j-js,k-ks,pG->Nx[0],pG->Nx[1],pG->Nx[2])][0] = 
 #ifdef SHEARING_BOX
-        RollDen[k][i][j] - grav_mean_rho + pG->Coup[k][j][i].grid_d;
+        RollDen[k][i][j] - grav_mean_rho;// + pG->Coup[k][j][i].grid_d;
 #else
         pG->U[k][j][i].d - grav_mean_rho + pG->Coup[k][j][i].grid_d; 
 #endif
+      /*ath_pout(0,"[fft_par] %d %d %d: densities: %g %g %g\n", k,j,i, \
+                                    RollDen[k][j][i], \
+                                    grav_mean_rho, \
+                                    RollDen[k][j][i]-grav_mean_rho);
+      */
+7
       work[F3DI(i-is,j-js,k-ks,pG->Nx[0],pG->Nx[1],pG->Nx[2])][1] = 0.0;
     }
   }}
@@ -297,7 +316,7 @@ void particle_to_grid_fft(DomainS *pD, PropFun_t par_prop)
   int i,j,k, is,js,ks, i0,j0,k0, i1,j1,k1, i2,j2,k2;
 
   /* left and right limit of grid indices */
-  int ilp,iup, jlp,jup, klp,kup;
+  //int ilp,iup, jlp,jup, klp,kup;
   /* number of neighbouring cells involved in 1D interpolation */
   int ncell, interp;
   int npartypes;               /*!< number of particle types */
@@ -358,15 +377,14 @@ void particle_to_grid_fft(DomainS *pD, PropFun_t par_prop)
   else m3 = 0;
 
 /* set left and right grid indices */
-  ilp = pG->is - m1*nghost;
+/*  ilp = pG->is - m1*nghost;
   iup = pG->ie + m1*nghost;
 
   jlp = pG->js - m2*nghost;
   jup = pG->je + m2*nghost;
 
   klp = pG->ks - m3*nghost;
-  kup = pG->ke + m3*nghost;
-
+  kup = pG->ke + m3*nghost; */
 
   //ath_pout(0,"[par2grid_fft] %d %d %d \n", kup, jup, iup);
 
@@ -390,7 +408,7 @@ void particle_to_grid_fft(DomainS *pD, PropFun_t par_prop)
 
   //ath_pout(2,"[par2grid_fft] %d %g\n", pG->nparticle, pG->Coup[k][j][i].grid_d);
   //ath_pout(3,"[par2grid_fft] %d %g\n", pG->nparticle, pG->Coup[k][j][i].grid_d);
-  
+
 
   /* bin the particles */
   for (p=0; p<pG->nparticle; p++) {
@@ -411,14 +429,14 @@ void particle_to_grid_fft(DomainS *pD, PropFun_t par_prop)
       j1 = MAX(js, jlp);    j2 = MIN(js+n0, jup);
       i1 = MAX(is, ilp);    i2 = MIN(is+n0, iup);
 
-      /*
+      ath_pout(0,"[par2grid_fft] nghost: %d \n", nghost);
+
       ath_pout(0,"[par2grid_fft] up: %d %d %d \n", kup, jup, iup);
       ath_pout(0,"[par2grid_fft] lp: %d %d %d \n", klp, jlp, ilp);
 
       ath_pout(0,"[par2grid_fft] s:  %d %d %d \n", ks, js, is);
       ath_pout(0,"[par2grid_fft] 1:  %d %d %d \n", k1, j1, i1);
-      ath_pout(0,"[par2grid_fft] 2:  %d %d %d \n", k2, j2, i2);
-      */
+      ath_pout(0,"[par2grid_fft] 2:  %d %d %d \n", k2, j2, i2);  
 
       for (k=k1; k<=k2; k++) {
         k0 = k-k1;
@@ -438,11 +456,13 @@ void particle_to_grid_fft(DomainS *pD, PropFun_t par_prop)
 #else
             drho = 1.0;
 #endif
-
+            //ath_pout(0,"[fft_par] %d %d %d: den calc: %g %g\n", k,j,i, weight[k0][j0][i0], drho);
+        
             pG->Coup[k][j][i].grid_d  += weight[k0][j0][i0]*drho;
             pG->Coup[k][j][i].grid_v1 += weight[k0][j0][i0]*drho*gr->v1;
             pG->Coup[k][j][i].grid_v2 += weight[k0][j0][i0]*drho*gr->v2;
             pG->Coup[k][j][i].grid_v3 += weight[k0][j0][i0]*drho*gr->v3;
+            
 
             //ath_pout(0,"[par2grid_fft] %g %g\n", drho, pG->Coup[k][j][i].grid_d);
 

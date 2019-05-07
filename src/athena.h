@@ -244,6 +244,7 @@ typedef struct Grain_Property_s{
 /*! \struct GPCouple
  *  \brief Grid elements for gas-particle coupling. */
 typedef struct GPCouple_s{
+  Real grid_dfft;	/*!< particle density for fft gravity */
   Real grid_d;		/*!< gas density (at 1/2 step) */
   Real grid_v1;		/*!< gas 1-velocity (at 1/2 step) */
   Real grid_v2;		/*!< gas 2-velocity (at 1/2 step) */
