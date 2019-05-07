@@ -102,26 +102,14 @@ nx2=pG->Nx[1]+2*nghost;
   jl = pG->js;
   kl = pG->ks;
 
-  //ath_pout(0,"[fft_par] indices: [%d][%d][%d] \n", kl,jl,il);
-  ath_pout(0,"[fft_par] indices: [%d][%d][%d] \n", ke,je,ie);
-
-  //ath_pout(0,"[partogrid_fft] [%d][%d][%d] 1:  %f \n", kt,jt,it, pG->Coup[kt][jt][it].grid_d);
-
 /* Copy current potential into old */
 
   for (k=ks-nghost; k<=ke+nghost; k++){
   for (j=js-nghost; j<=je+nghost; j++){
     for (i=is-nghost; i<=ie+nghost; i++){
-      pG->Phi_old[k][j][i] = pG->Phi[k][j][i];// pG->Coup[k][j][i].grid_d;
+      pG->Phi_old[k][j][i] = pG->Phi[k][j][i];
 #ifdef SHEARING_BOX
       RollDen[k][i][j] = pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d;
-
-    //  ath_pout(0,"[fft_par] indices: [%d][%d][%d] \n", kl,jl,il);
-
-      //if(abs(pG->Coup[k][j][i].grid_d) < 1e-6){
-      //ath_pout(0,"[fft_par] %d %d %d: densities: %g %g\n", k,j,i,pG->U[k][j][i].d, 
-      //                              pG->Coup[k][j][i].grid_d);
-      //}
 #endif
     }
   }}
@@ -138,7 +126,7 @@ nx2=pG->Nx[1]+2*nghost;
     for (i=is; i<=ie; i++){
       work[F3DI(i-is,j-js,k-ks,pG->Nx[0],pG->Nx[1],pG->Nx[2])][0] = 
 #ifdef SHEARING_BOX
-        RollDen[k][i][j] - grav_mean_rho;// + pG->Coup[k][j][i].grid_d;
+        RollDen[k][i][j] - grav_mean_rho;
 #else
         pG->U[k][j][i].d - grav_mean_rho + pG->Coup[k][j][i].grid_d; 
 #endif
@@ -147,7 +135,7 @@ nx2=pG->Nx[1]+2*nghost;
                                     grav_mean_rho, \
                                     RollDen[k][j][i]-grav_mean_rho);
       */
-7
+
       work[F3DI(i-is,j-js,k-ks,pG->Nx[0],pG->Nx[1],pG->Nx[2])][1] = 0.0;
     }
   }}
