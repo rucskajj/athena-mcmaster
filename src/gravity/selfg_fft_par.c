@@ -147,7 +147,7 @@ nx2=pG->Nx[1]+2*nghost;
                                     grav_mean_rho, \
                                     RollDen[k][j][i]-grav_mean_rho);
       */
-7
+
       work[F3DI(i-is,j-js,k-ks,pG->Nx[0],pG->Nx[1],pG->Nx[2])][1] = 0.0;
     }
   }}
