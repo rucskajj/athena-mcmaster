@@ -79,7 +79,7 @@ extern Real expr_V3par(const GridS *pG, const int i, const int j, const int k);
 void problem(DomainS *pDomain)
 {
   GridS *pGrid = pDomain->Grid;
-  int i,j,k,ip,jp,kp,interp;
+  int i,j,k,ip,jp,kp,interp,integrator;
   long p;
   Real x1,x2,x3,t,x1l,x1u,x2l,x2u,x3l,x3u,x1p,x2p,x3p,paramp,factor2,reduct;
   Real x1min,x1max,x2min,x2max,x3min,x3max,Lx,Ly,Lz;
@@ -160,6 +160,13 @@ mratio = par_getd_def("problem","mratio",0.0); /* total mass fraction */
   mratio = 0.0;
 #endif
   amp = amp;//*mratio; /* N.B.! */
+
+  integrator = par_geti("particle","integrator");
+  if(integrator != 2){
+     ath_error("[selfgXY]: Currently testing with drag on dust off!\
+ integrator must be 2 for the semimp integrator in \
+ integrators_particle.c .\n");
+  }
 
   Reux  =  par_getd_def("problem","Reux",0.0)*amp;
   Imux  =  par_getd_def("problem","Imux",0.0)*amp;
