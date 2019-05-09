@@ -49,6 +49,9 @@ Real3Vect Get_Drag(GridS *pG, int type, Real x1, Real x2, Real x3,
                 Real v1, Real v2, Real v3, Real3Vect cell1, Real *tstop1);
 Real3Vect Get_Force(GridS *pG, Real x1, Real x2, Real x3,
                                Real v1, Real v2, Real v3);
+#ifdef SELF_GRAVITY_USING_FFT_PAR
+Real3Vect Get_Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1);
+#endif 
 
 /*=========================== PUBLIC FUNCTIONS ===============================*/
 /*----------------------------------------------------------------------------*/
@@ -302,7 +305,8 @@ void int_par_fulimp(GridS *pG, GrainS *curG, Real3Vect cell1,
 void int_par_semimp(GridS *pG, GrainS *curG, Real3Vect cell1, 
                               Real *dv1, Real *dv2, Real *dv3, Real *ts)
 {
-  Real3Vect fd, fr, ft;	/* drag force and other forces, total force */
+  Real3Vect fd, fg, fr, ft; /* drag force, grav force, 
+                               other forces, total force */
   Real ts1, b, b2;	/* other shortcut expressions */
   Real x1n, x2n, x3n;	/* first order new position at half a time step */
 #ifdef SHEARING_BOX
@@ -331,12 +335,16 @@ void int_par_semimp(GridS *pG, GrainS *curG, Real3Vect cell1,
 
   fr = Get_Force(pG, x1n, x2n, x3n, curG->v1, curG->v2, curG->v3);
 
-  fd.x1 = 0.0; fd.x2 = 0.0; fd.x3 = 0.0; //Note: Turning off drag!
-  fr.x1 = 0.0; fr.x2 = 0.0; fr.x3 = 0.0; //Note: Turning off other forces!
+#ifdef SELF_GRAVITY_USING_FFT_PAR
+  fg = Get_Gravity(pG, x1n, x2n, x3n, cell1);
+#endif
 
-  ft.x1 = fd.x1+fr.x1;
-  ft.x2 = fd.x2+fr.x2;
-  ft.x3 = fd.x3+fr.x3;
+  //fd.x1 = 0.0; fd.x2 = 0.0; fd.x3 = 0.0; //Note: Turning off drag!
+  //fr.x1 = 0.0; fr.x2 = 0.0; fr.x3 = 0.0; //Note: Turning off other forces!
+
+  ft.x1 = fd.x1+fr.x1+fg.x1;
+  ft.x2 = fd.x2+fr.x1+fg.x2;
+  ft.x3 = fd.x3+fr.x3+fg.x3;
 
 /* step 3: calculate velocity update */
 
@@ -796,5 +804,72 @@ Real3Vect Get_Force(GridS *pG, Real x1, Real x2, Real x3,
 
   return ft;
 }
+
+#ifdef SELF_GRAVITY_USING_FFT_PAR
+
+/*--------------------------------------------------------------------------- */
+/*! \fn Real3Vect Get_Gravity(GridS *pG, int type, Real x1, Real x2, Real x3,
+ *              Real3Vect cell1)
+ *  \brief Calculate the gravitational force to the particles 
+ *
+ * Input:
+ *   pG: grid;	cell1: 1/dx1,1/dx2,1/dx3;
+ *   x1,x2,x3: particle position;
+ *   cell1: 1/dx1,1/dx2,1/dx3;
+ * Return:
+ *   fg: gravitational force;
+ */
+Real3Vect Get_Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1)
+{
+  int i,j,k, is,js,ks, i0,j0,k0, i1,j1,k1, i2,j2,k2;
+  int n0 = ncell-1;
+  Real rho, u1, u2, u3, cs;
+  Real vd1, vd2, vd3, vd, tstop, ts1;
+#ifdef FEEDBACK
+  Real stiffness;
+#endif
+  Real weight[3][3][3];		/* weight function */
+  Real3Vect fg;
+
+  fg.x1 = fg.x2 = fg.x3 = 0.0;
+
+  /* interpolation to get fluid density, velocity and the sound speed */
+  getweight(pG, x1, x2, x3, cell1, weight, &is, &js, &ks);
+
+      k1 = MAX(ks, klp);    k2 = MIN(ks+n0, kup);
+      j1 = MAX(js, jlp);    j2 = MIN(js+n0, jup);
+      i1 = MAX(is, ilp);    i2 = MIN(is+n0, iup);
+
+#ifndef FEEDBACK
+  if (getvalues(pG, weight, is, js, ks, &rho, &u1, &u2, &u3, &cs) == 0)
+#else
+  if (getvalues(pG, weight, is, js, ks, &rho,&u1,&u2,&u3,&cs, &stiffness) == 0)
+#endif
+  { /* particle in the grid */
+    for (k=k1; k<=k2; k++) {
+    k0 = k-k1;
+      for (j=j1; j<=j2; j++) {
+      j0 = j-j1;
+        for (i=i1; i<=i2; i++) {
+          i0 = i-i1;
+          /* interpolate the particles to the grid */
+          fg.x1  += weight[k0][j0][i0]*pG->GradPhiX1[k][j][i];
+          fg.x2  += weight[k0][j0][i0]*pG->GradPhiX2[k][j][i];
+          fg.x3  += weight[k0][j0][i0]*pG->GradPhiX3[k][j][i];
+
+          
+        }
+      }
+    }
+  }
+  else
+  { /* particle out of the grid, free motion, with warning sign */
+    ath_perr(0, "Particle move out of grid %d with position (%f,%f,%f)!\n",
+                                      myID_Comm_world,x1,x2,x3); /* warning! */
+  }
+
+  return fg;
+}
+#endif /* SELF_GRAVITY_USING_FFT_PAR */
 
 #endif /*PARTICLES*/

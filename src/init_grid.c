@@ -202,6 +202,17 @@ void init_grid(MeshS *pM)
       pG->Phi = (Real***)calloc_3d_array(n3z, n2z, n1z, sizeof(Real));
       if (pG->Phi == NULL) goto on_error9;
 
+#ifdef SELF_GRAVITY_USING_FFT_PAR
+      pG->GradPhiX1 = (Real***)calloc_3d_array(n3z, n2z, n1z, sizeof(Real));
+      if (pG->GradPhiX1 == NULL) goto on_error9;
+
+      pG->GradPhiX2 = (Real***)calloc_3d_array(n3z, n2z, n1z, sizeof(Real));
+      if (pG->GradPhiX2 == NULL) goto on_error9;
+
+      pG->GradPhiX3 = (Real***)calloc_3d_array(n3z, n2z, n1z, sizeof(Real));
+      if (pG->GradPhiX3 == NULL) goto on_error9;
+#endif
+
       pG->Phi_old = (Real***)calloc_3d_array(n3z, n2z, n1z, sizeof(Real));
       if (pG->Phi_old == NULL) goto on_error10;
 
@@ -1108,6 +1119,10 @@ G3.ijkl[2],G3.ijkr[2]);
     free_3d_array(pG->Phi_old);
   on_error9:
     free_3d_array(pG->Phi);
+  on_error8:
+    free_3d_array(pG->GradPhiX1);
+    free_3d_array(pG->GradPhiX2);
+    free_3d_array(pG->GradPhiX3);
 #endif
 #ifdef RESISTIVITY
   on_error7:
