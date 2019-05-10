@@ -1,0 +1,9 @@
+*Makefile
+*Makedepend
+*Makeoptions
+bin/
+config.*
+configure
+autom4te.cache/
+src/defs.h
+src/problem.c
