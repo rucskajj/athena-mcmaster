@@ -66,7 +66,12 @@ void selfg_fft_par_3d(DomainS *pD)
   Real dx1sq=(pG->dx1*pG->dx1),dx2sq=(pG->dx2*pG->dx2),dx3sq=(pG->dx3*pG->dx3);
   Real dkx,dky,dkz,pcoeff;
 
-  //particle_to_grid_fft(pD, property_all);
+  Real3Vect cell1;              /* one over dx1, dx2, dx3 */
+  /* cell1 is a shortcut expressions as well as dimension indicator */
+  if (pG->Nx[0] > 1)  cell1.x1 = 1.0/pG->dx1;  else cell1.x1 = 0.0;
+  if (pG->Nx[1] > 1)  cell1.x2 = 1.0/pG->dx2;  else cell1.x2 = 0.0;
+  if (pG->Nx[2] > 1)  cell1.x3 = 1.0/pG->dx3;  else cell1.x3 = 0.0;
+
   particle_to_grid(pD, property_all);
 
 #ifdef SHEARING_BOX
@@ -102,26 +107,14 @@ nx2=pG->Nx[1]+2*nghost;
   jl = pG->js;
   kl = pG->ks;
 
-  //ath_pout(0,"[fft_par] indices: [%d][%d][%d] \n", kl,jl,il);
-  ath_pout(0,"[fft_par] indices: [%d][%d][%d] \n", ke,je,ie);
-
-  //ath_pout(0,"[partogrid_fft] [%d][%d][%d] 1:  %f \n", kt,jt,it, pG->Coup[kt][jt][it].grid_d);
-
 /* Copy current potential into old */
 
   for (k=ks-nghost; k<=ke+nghost; k++){
   for (j=js-nghost; j<=je+nghost; j++){
     for (i=is-nghost; i<=ie+nghost; i++){
-      pG->Phi_old[k][j][i] = pG->Phi[k][j][i];// pG->Coup[k][j][i].grid_d;
+      pG->Phi_old[k][j][i] = pG->Phi[k][j][i];
 #ifdef SHEARING_BOX
       RollDen[k][i][j] = pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d;
-
-    //  ath_pout(0,"[fft_par] indices: [%d][%d][%d] \n", kl,jl,il);
-
-      //if(abs(pG->Coup[k][j][i].grid_d) < 1e-6){
-      //ath_pout(0,"[fft_par] %d %d %d: densities: %g %g\n", k,j,i,pG->U[k][j][i].d, 
-      //                              pG->Coup[k][j][i].grid_d);
-      //}
 #endif
     }
   }}
@@ -138,7 +131,7 @@ nx2=pG->Nx[1]+2*nghost;
     for (i=is; i<=ie; i++){
       work[F3DI(i-is,j-js,k-ks,pG->Nx[0],pG->Nx[1],pG->Nx[2])][0] = 
 #ifdef SHEARING_BOX
-        RollDen[k][i][j] - grav_mean_rho;// + pG->Coup[k][j][i].grid_d;
+        RollDen[k][i][j] - grav_mean_rho;
 #else
         pG->U[k][j][i].d - grav_mean_rho + pG->Coup[k][j][i].grid_d; 
 #endif
@@ -272,6 +265,9 @@ nx2=pG->Nx[1]+2*nghost;
     for (j=js; j<=je; j++){
       for (i=is; i<=ie; i++){
          pG->Phi[k][j][i] = UnRollPhi[k][i][j];
+         pG->GradPhiX1[k][j][i] = -0.5*cell1.x1*(pG->Phi[k][j][i+1]-pG->Phi[k][j][i-1]);
+         pG->GradPhiX2[k][j][i] = -0.5*cell1.x2*(pG->Phi[k][j+1][i]-pG->Phi[k][j-1][i]);
+         pG->GradPhiX3[k][j][i] = -0.5*cell1.x3*(pG->Phi[k+1][j][i]-pG->Phi[k-1][j][i]);
       }
     }
   }
@@ -304,178 +300,6 @@ void selfg_fft_par_3d_init(MeshS *pM)
       }
     }
   }
-}
-
-/*----------------------------------------------------------------------------*/
-/*! \fn void particle_to_grid(Grid *pG, PropFun_t par_prop)
- *  \brief Bin the particles to grid cells
- */
-void particle_to_grid_fft(DomainS *pD, PropFun_t par_prop)
-{
-  GridS *pG = pD->Grid;
-  int i,j,k, is,js,ks, i0,j0,k0, i1,j1,k1, i2,j2,k2;
-
-  /* left and right limit of grid indices */
-  //int ilp,iup, jlp,jup, klp,kup;
-  /* number of neighbouring cells involved in 1D interpolation */
-  int ncell, interp;
-  int npartypes;               /*!< number of particle types */
-  //Grain_Property *grproperty;  /*!< array of particle properties of all types */
-
-  /* allocate memory for particle properties */
-  //grproperty = (Grain_Property*)calloc_1d_array(npartypes,
-  //                                            sizeof(Grain_Property));
-  //if (grproperty == NULL) ath_error("[init_particle]: Error allocating memory.\n");
-
-  /* set the interpolation function pointer */
-  interp = par_geti_def("particle","interp",2);
-  if (interp == 1)
-  { /* linear interpolation */
-    getweight = getwei_linear;
-    ncell = 2;
-  }
-  else if (interp == 2)
-  { /* TSC interpolation */
-    getweight = getwei_TSC;
-    ncell = 3;
-  }
-  else if (interp == 3)
-  { /* Quadratic polynomial interpolation */
-    getweight = getwei_QP;
-    ncell = 3;
-  }
-  else
-    ath_error("[init_particle]: Value of interp must be 1, 2 or 3!\n");
-
-  int n0 = ncell-1;
-  long p;
-  Real drho;
-  Real weight[3][3][3];
-  Real3Vect cell1;
-  GrainS *gr;
-
-  /* Get grid limit related quantities */
-  if (pG->Nx[0] > 1)  cell1.x1 = 1.0/pG->dx1;
-  else                cell1.x1 = 0.0;
-
-  if (pG->Nx[1] > 1)  cell1.x2 = 1.0/pG->dx2;
-  else                cell1.x2 = 0.0;
-
-  if (pG->Nx[2] > 1)  cell1.x3 = 1.0/pG->dx3;
-  else                cell1.x3 = 0.0;
-
-
-
-  int m1, m2, m3;   /* dimension flags */
-  if (pG->Nx[0] > 1) m1 = 1;
-  else m1 = 0;
-
-  if (pG->Nx[1] > 1) m2 = 1;
-  else m2 = 0;
-
-  if (pG->Nx[2] > 1) m3 = 1;
-  else m3 = 0;
-
-/* set left and right grid indices */
-/*  ilp = pG->is - m1*nghost;
-  iup = pG->ie + m1*nghost;
-
-  jlp = pG->js - m2*nghost;
-  jup = pG->je + m2*nghost;
-
-  klp = pG->ks - m3*nghost;
-  kup = pG->ke + m3*nghost; */
-
-  //ath_pout(0,"[par2grid_fft] %d %d %d \n", kup, jup, iup);
-
-  /* initialization */
-  for (k=klp; k<=kup; k++)
-    for (j=jlp; j<=jup; j++)
-      for (i=ilp; i<=iup; i++) {
-
-        //ath_pout(0,"[par2grid_fft] Made it in this loop.\n");
-
-        pG->Coup[k][j][i].grid_d = 0.0;
-        pG->Coup[k][j][i].grid_v1 = 0.0;
-        pG->Coup[k][j][i].grid_v2 = 0.0;
-        pG->Coup[k][j][i].grid_v3 = 0.0;
-
-        //ath_pout(0,"[par2grid_fft] %d %f\n", pG->Coup[k][j][i].grid_d);
-      }
-
-  //ath_pout(0,"[par2grid_fft] ncell: %d\n", ncell);
-  //ath_pout(0,"[par2grid_fft] %d\n", pG->nparticle);
-
-  //ath_pout(2,"[par2grid_fft] %d %g\n", pG->nparticle, pG->Coup[k][j][i].grid_d);
-  //ath_pout(3,"[par2grid_fft] %d %g\n", pG->nparticle, pG->Coup[k][j][i].grid_d);
-
-
-  /* bin the particles */
-  for (p=0; p<pG->nparticle; p++) {
-    gr = &(pG->particle[p]);
-
-    //ath_pout(0,"[par2grid_fft] In this loop.\n");
-
-    /* judge if the particle should be selected */
-    if ((*par_prop)(gr, &(pG->parsub[p]))) {/* 1: true; 0: false */
-
-
-      //ath_pout(0,"[par2grid_fft] 2: In this loop.\n");
-
-      getweight(pG, gr->x1, gr->x2, gr->x3, cell1, weight, &is, &js, &ks);
-
-      /* distribute particles */
-      k1 = MAX(ks, klp);    k2 = MIN(ks+n0, kup);
-      j1 = MAX(js, jlp);    j2 = MIN(js+n0, jup);
-      i1 = MAX(is, ilp);    i2 = MIN(is+n0, iup);
-
-      ath_pout(0,"[par2grid_fft] nghost: %d \n", nghost);
-
-      ath_pout(0,"[par2grid_fft] up: %d %d %d \n", kup, jup, iup);
-      ath_pout(0,"[par2grid_fft] lp: %d %d %d \n", klp, jlp, ilp);
-
-      ath_pout(0,"[par2grid_fft] s:  %d %d %d \n", ks, js, is);
-      ath_pout(0,"[par2grid_fft] 1:  %d %d %d \n", k1, j1, i1);
-      ath_pout(0,"[par2grid_fft] 2:  %d %d %d \n", k2, j2, i2);  
-
-      for (k=k1; k<=k2; k++) {
-        k0 = k-k1;
-        for (j=j1; j<=j2; j++) {
-          j0 = j-j1;
-          for (i=i1; i<=i2; i++) {
-            i0 = i-i1;
-
-            //ath_pout(0,"[par2grid_fft] ind:   %d %d %d \n", k, j, i);
-            //ath_pout(0,"[par2grid_fft] ind0:  %d %d %d \n", k0, j0, i0);
-
-            //ath_pout(0,"[par2grid_fft] 3: In this loop.\n");
-
-            /* interpolate the particles to the grid */
-#ifdef FEEDBACK
-            drho = grproperty[gr->property].m;
-#else
-            drho = 1.0;
-#endif
-            //ath_pout(0,"[fft_par] %d %d %d: den calc: %g %g\n", k,j,i, weight[k0][j0][i0], drho);
-        
-            pG->Coup[k][j][i].grid_d  += weight[k0][j0][i0]*drho;
-            pG->Coup[k][j][i].grid_v1 += weight[k0][j0][i0]*drho*gr->v1;
-            pG->Coup[k][j][i].grid_v2 += weight[k0][j0][i0]*drho*gr->v2;
-            pG->Coup[k][j][i].grid_v3 += weight[k0][j0][i0]*drho*gr->v3;
-            
-
-            //ath_pout(0,"[par2grid_fft] %g %g\n", drho, pG->Coup[k][j][i].grid_d);
-
-          }
-        }
-      }
-    }
-  }
-
-/* deposit ghost zone values into the boundary zones */
-  exchange_gpcouple(pD, 0);
-
-  return;
 }
 
 #endif /* SELF_GRAVITY_USING_FFT_PAR */
