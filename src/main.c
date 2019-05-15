@@ -568,6 +568,23 @@ int main(int argc, char *argv[])
 
     Userwork_in_loop(&Mesh);
 
+/*--- Step 9g. ---------------------------------------------------------------*/
+/* Update Mesh time, and time in all Grid's. */
+
+    Mesh.nstep++;
+    Mesh.time += Mesh.dt;
+    for (nl=0; nl<(Mesh.NLevels); nl++){
+      for (nd=0; nd<(Mesh.DomainsPerLevel[nl]); nd++){
+        if (Mesh.Domain[nl][nd].Grid != NULL){
+          Mesh.Domain[nl][nd].Grid->time = Mesh.time;
+        }
+      }
+    }
+
+    dt_done = Mesh.dt;
+
+/* Swap step 9g and 9f as per the suggestion of Chang-Goo Kim. This order makes
+ * the FARGO calculation with self-gravity more accurate.                     */
 /*--- Step 9f. ---------------------------------------------------------------*/
 /* Compute gravitational potential using new density, and add second-order
  * correction to fluxes for accelerations due to self-gravity. */
@@ -583,21 +600,6 @@ int main(int argc, char *argv[])
       }
     }
 #endif
-
-/*--- Step 9g. ---------------------------------------------------------------*/
-/* Update Mesh time, and time in all Grid's. */
-
-    Mesh.nstep++;
-    Mesh.time += Mesh.dt;
-    for (nl=0; nl<(Mesh.NLevels); nl++){
-      for (nd=0; nd<(Mesh.DomainsPerLevel[nl]); nd++){
-        if (Mesh.Domain[nl][nd].Grid != NULL){
-          Mesh.Domain[nl][nd].Grid->time = Mesh.time;
-        }
-      }
-    }
-
-    dt_done = Mesh.dt;
 
 /*--- Step 9h. ---------------------------------------------------------------*/
 /* Boundary values must be set after time is updated for t-dependent BCs.
