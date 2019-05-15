@@ -258,6 +258,17 @@ nx2=pG->Nx[1]+2*nghost;
     }
   }}
 
+
+  for (k=ks; k<=ke; k++){
+    for (j=js; j<=je; j++){
+      for (i=is; i<=ie; i++){
+         pG->GradPhiX1[k][j][i] = -0.5*cell1.x1*(pG->Phi[k][j][i+1]-pG->Phi[k][j][i-1]);
+         pG->GradPhiX2[k][j][i] = -0.5*cell1.x2*(pG->Phi[k][j+1][i]-pG->Phi[k][j-1][i]);
+         pG->GradPhiX3[k][j][i] = -0.5*cell1.x3*(pG->Phi[k+1][j][i]-pG->Phi[k-1][j][i]);
+      }
+    }
+  }
+
 #ifdef SHEARING_BOX
   RemapVar(pD,UnRollPhi,dt);
 
@@ -265,9 +276,6 @@ nx2=pG->Nx[1]+2*nghost;
     for (j=js; j<=je; j++){
       for (i=is; i<=ie; i++){
          pG->Phi[k][j][i] = UnRollPhi[k][i][j];
-         pG->GradPhiX1[k][j][i] = -0.5*cell1.x1*(pG->Phi[k][j][i+1]-pG->Phi[k][j][i-1]);
-         pG->GradPhiX2[k][j][i] = -0.5*cell1.x2*(pG->Phi[k][j+1][i]-pG->Phi[k][j-1][i]);
-         pG->GradPhiX3[k][j][i] = -0.5*cell1.x3*(pG->Phi[k+1][j][i]-pG->Phi[k-1][j][i]);
       }
     }
   }

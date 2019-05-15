@@ -339,8 +339,9 @@ void int_par_semimp(GridS *pG, GrainS *curG, Real3Vect cell1,
   fg = Get_Gravity(pG, x1n, x2n, x3n, cell1);
 #endif
 
-  //fd.x1 = 0.0; fd.x2 = 0.0; fd.x3 = 0.0; //Note: Turning off drag!
+  fd.x1 = 0.0; fd.x2 = 0.0; fd.x3 = 0.0; //Note: Turning off drag!
   //fr.x1 = 0.0; fr.x2 = 0.0; fr.x3 = 0.0; //Note: Turning off other forces!
+  fg.x1 = 0.0; fg.x2 = 0.0; fg.x3 = 0.0; //Note: Turning off gravity forces!
 
   ft.x1 = fd.x1+fr.x1+fg.x1;
   ft.x2 = fd.x2+fr.x1+fg.x2;
