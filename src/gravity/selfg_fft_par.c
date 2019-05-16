@@ -262,12 +262,23 @@ nx2=pG->Nx[1]+2*nghost;
   for (k=ks-(nghost-1); k<=ke+(nghost-1); k++){
     for (j=js-(nghost-1); j<=je+(nghost-1); j++){
       for (i=is-(nghost-1); i<=ie+(nghost-1); i++){
-         pG->GradPhiX1[k][j][i] = -0.5*cell1.x1*(pG->Phi[k][j][i+1]-pG->Phi[k][j][i-1]);
-         pG->GradPhiX2[k][j][i] = -0.5*cell1.x2*(pG->Phi[k][j+1][i]-pG->Phi[k][j-1][i]);
-         pG->GradPhiX3[k][j][i] = -0.5*cell1.x3*(pG->Phi[k+1][j][i]-pG->Phi[k-1][j][i]);
+         pG->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
+           ( 0.5*(pG->Phi[k][j][i+1]+pG->Phi_old[k][j][i+1]) - \ 
+             0.5*(pG->Phi[k][j][i-1]+pG->Phi_old[k][j][i-1]));
+
+         pG->GradPhiX2[k][j][i] = -0.5*cell1.x2* \
+           ( 0.5*(pG->Phi[k][j+1][i]+pG->Phi_old[k][j+1][i]) - \ 
+             0.5*(pG->Phi[k][j-1][i]+pG->Phi_old[k][j-1][i]));
+
+         pG->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
+           ( 0.5*(pG->Phi[k+1][j][i]+pG->Phi_old[k+1][j][i]) - \
+             0.5*(pG->Phi[k-1][j][i]+pG->Phi_old[k-1][j][i]));
+
+         //pG->GradPhiX2[k][j][i] = -0.5*cell1.x2*(pG->Phi[k][j+1][i]-pG->Phi[k][j-1][i]);
       }
     }
   }
+
 
 #ifdef SHEARING_BOX
   RemapVar(pD,UnRollPhi,dt);
@@ -276,7 +287,6 @@ nx2=pG->Nx[1]+2*nghost;
     for (j=js; j<=je; j++){
       for (i=is; i<=ie; i++){
          pG->Phi[k][j][i] = UnRollPhi[k][i][j];
-         pG->Phi[k][j][i] = 0.0;
       }
     }
   }
@@ -285,6 +295,16 @@ nx2=pG->Nx[1]+2*nghost;
   free_3d_array(UnRollPhi);
 #endif
 
+
+/*
+  for (k=ks-(nghost-1); k<=ke+(nghost-1); k++){
+    for (j=js-(nghost-1); j<=je+(nghost-1); j++){
+      for (i=is-(nghost-1); i<=ie+(nghost-1); i++){
+         pG->Phi[k][j][i] = 0.0;
+      }
+    }
+  }
+*/
   return;
 }
 

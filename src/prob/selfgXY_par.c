@@ -518,6 +518,36 @@ static Real expr_dVypar(const GridS *pG, const int i, const int j, const int k)
 #endif
 }
 
+/*! \fn static Real expr_GradPhiX1(const GridS *pG, const int i, const int j, 
+ *			        const int k)
+ *  \brief GradPhiX1 */
+static Real expr_GradPhiX1(const GridS *pG, const int i, const int j, const int k)
+{
+  Real x1,x2,x3;
+  cc_pos(pG,i,j,k,&x1,&x2,&x3);
+  return pG->GradPhiX1[k][j][i];
+}
+
+/*! \fn static Real expr_GradPhiX2(const GridS *pG, const int i, const int j, 
+ *			        const int k)
+ *  \brief GradPhiX2 */
+static Real expr_GradPhiX2(const GridS *pG, const int i, const int j, const int k)
+{
+  Real x1,x2,x3;
+  cc_pos(pG,i,j,k,&x1,&x2,&x3);
+  return pG->GradPhiX2[k][j][i];
+}
+
+/*! \fn static Real expr_GradPhiX3(const GridS *pG, const int i, const int j, 
+ *			        const int k)
+ *  \brief GradPhiX3 */
+static Real expr_GradPhiX3(const GridS *pG, const int i, const int j, const int k)
+{
+  Real x1,x2,x3;
+  cc_pos(pG,i,j,k,&x1,&x2,&x3);
+  return pG->GradPhiX3[k][j][i];
+}
+
 ConsFun_t get_usr_expr(const char *expr)
 {
   if(strcmp(expr,"difd")==0) return expr_rhodif;
@@ -526,6 +556,9 @@ ConsFun_t get_usr_expr(const char *expr)
   if(strcmp(expr,"difdpar")==0) return expr_rhopardif;
   if(strcmp(expr,"dVxpar")==0) return expr_dVxpar;
   if(strcmp(expr,"dVypar")==0) return expr_dVypar;
+  if(strcmp(expr,"gphi1")==0) return expr_GradPhiX1;
+  if(strcmp(expr,"gphi2")==0) return expr_GradPhiX2;
+  if(strcmp(expr,"gphi3")==0) return expr_GradPhiX3;
   return NULL;
 }
 
