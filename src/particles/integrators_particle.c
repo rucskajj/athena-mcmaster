@@ -339,9 +339,9 @@ void int_par_semimp(GridS *pG, GrainS *curG, Real3Vect cell1,
   fg = Get_Gravity(pG, x1n, x2n, x3n, cell1);
 #endif
 
-  fd.x1 = 0.0; fd.x2 = 0.0; fd.x3 = 0.0; //Note: Turning off drag!
+  //fd.x1 = 0.0; fd.x2 = 0.0; fd.x3 = 0.0; //Note: Turning off drag!
   //fr.x1 = 0.0; fr.x2 = 0.0; fr.x3 = 0.0; //Note: Turning off other forces!
-  fg.x1 = 0.0; fg.x2 = 0.0; fg.x3 = 0.0; //Note: Turning off gravity forces!
+  //fg.x1 = 0.0; fg.x2 = 0.0; fg.x3 = 0.0; //Note: Turning off gravity forces!
 
   ft.x1 = fd.x1+fr.x1+fg.x1;
   ft.x2 = fd.x2+fr.x1+fg.x2;
@@ -837,9 +837,9 @@ Real3Vect Get_Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1)
   /* interpolation to get fluid density, velocity and the sound speed */
   getweight(pG, x1, x2, x3, cell1, weight, &is, &js, &ks);
 
-      k1 = MAX(ks, klp);    k2 = MIN(ks+n0, kup);
-      j1 = MAX(js, jlp);    j2 = MIN(js+n0, jup);
-      i1 = MAX(is, ilp);    i2 = MIN(is+n0, iup);
+  k1 = MAX(ks, klp);    k2 = MIN(ks+n0, kup);
+  j1 = MAX(js, jlp);    j2 = MIN(js+n0, jup);
+  i1 = MAX(is, ilp);    i2 = MIN(is+n0, iup);
 
 #ifndef FEEDBACK
   if (getvalues(pG, weight, is, js, ks, &rho, &u1, &u2, &u3, &cs) == 0)

@@ -4,14 +4,13 @@
  *  \brief  Problem generator for linear shearing self gravitating wave test.
  *
  * Perturbation modes:
- *  - ipert = 0: no perturbation, test for the NSH equilibrium, need FARGO
- *  - ipert = 1: linA of YJ07 (cold start), need FARGO
- *  - ipert = 2: linB of YJ07 (cold start), need FARGO
- *  - ipert = 3: random perturbation (warm start), do not need FARGO
+ *  - ipert = 1: perturbation to gas onky
+ *  - ipert = 2: perturbation to dust only
+ *  - ipert = 3: pertutbation to gas and dust
+ *  - ipert = 4: random perturbation (warm start)
  *
  *  Must be configured using --enable-shearing-box and --with-eos=isothermal.
- *  FARGO is need to establish the NSH equilibrium (ipert=0,1,2).
- *
+ *  FARGO is need to establish the NSH equilibrium (ipert=0,1,2).             */
 /*============================================================================*/
 
 #include <float.h>
@@ -147,6 +146,8 @@ void problem(DomainS *pDomain)
 #ifdef FEEDBACK
   grproperty[0].m = rho0*mratio/Npar3;
 #else
+  grav_mean_rho = rho0 + 1.0; // dust particle mass set to 1 in 
+                             // particle_to_grid routine with FB off
   mratio = 0.0;
 #endif
 
@@ -178,35 +179,32 @@ void problem(DomainS *pDomain)
   s    =  par_getd_def("problem","s"  ,0.0)*Omega_0;
 
   /* Adjust code units */ 
-  if ((ipert == 1) || (ipert == 2))
-  {
-    nwaveX = (int)par_getd_def("problem","nwaveX",1);
-    nwaveY = (int)par_getd_def("problem","nwaveY",1);
+  nwaveX = (int)par_getd_def("problem","nwaveX",1);
+  nwaveY = (int)par_getd_def("problem","nwaveY",1);
 
-    kx    = 2.0*PI/Lx*nwaveX;
-    ky    = 2.0*PI/Ly*nwaveY;
-    /* Reset isothermal sound speed */
-    cs = 1.0; // set cs to 1.0, box size set in python to vary k*eta*r
-    Iso_csound = cs;
-    Iso_csound2 = SQR(Iso_csound);
+  kx    = 2.0*PI/Lx*nwaveX;
+  ky    = 2.0*PI/Ly*nwaveY;
+  /* Reset isothermal sound speed */
+  cs = 1.0; // set cs to 1.0, box size set in python to vary k*eta*r
+  Iso_csound = cs;
+  Iso_csound2 = SQR(Iso_csound);
 
-    interp = par_geti("particle","interp");
-    if (interp == 3) {/* QP */
-      paramp = amp*kx*pGrid->dx1/sin(kx*pGrid->dx1);
+  interp = par_geti("particle","interp");
+  if (interp == 3) {/* QP */
+    paramp = amp*kx*pGrid->dx1/sin(kx*pGrid->dx1);
+    factor2 = 0.5*tan(kx*pGrid->dx1)/(kx*pGrid->dx1);
+    reduct = 1.0;
+  }
+  else if (interp == 2) {/* TSC */
+      paramp = 4.0*amp*kx*pGrid->dx1/sin(kx*pGrid->dx1)/
+                                  (3.0+cos(ky*pGrid->dx2));
       factor2 = 0.5*tan(kx*pGrid->dx1)/(kx*pGrid->dx1);
+      reduct = 1.0/(1.0-0.25*SQR(kx*pGrid->dx1)); reduct=1.0;
+  }
+  else {
+      paramp = amp;
+      factor2 = 0.5;
       reduct = 1.0;
-    }
-    else if (interp == 2) {/* TSC */
-        paramp = 4.0*amp*kx*pGrid->dx1/sin(kx*pGrid->dx1)/
-                                    (3.0+cos(ky*pGrid->dx2));
-        factor2 = 0.5*tan(kx*pGrid->dx1)/(kx*pGrid->dx1);
-        reduct = 1.0/(1.0-0.25*SQR(kx*pGrid->dx1)); reduct=1.0;
-    }
-    else {
-        paramp = amp;
-        factor2 = 0.5;
-        reduct = 1.0;
-    }
   }
   etavk = etavk * Iso_csound; /* switch to code unit (N.B.!) */
 
@@ -225,7 +223,6 @@ void problem(DomainS *pDomain)
   /* NOTE. Turning off background velocity stuff. */
   uxNSH = 0.0; uyNSH = 0.0; wxNSH = 0.0, wyNSH = 0.0;
   etavk = 1.0;
-  paramp = 0.0; // Don't want particle perturbations right now
 
   ath_pout(0,"etavk=%f, Iso_csound=%f\n",etavk,Iso_csound);
 
@@ -237,7 +234,7 @@ void problem(DomainS *pDomain)
   for (i=pGrid->is; i<=pGrid->ie; i++) {
     cc_pos(pGrid,i,j,k,&x1,&x2,&x3);
 
-    if ((ipert == 1) || (ipert == 2)) {
+    if ((ipert == 1) || (ipert == 3)) {
       rhog = rho0 * (1.0+reduct*pert_XY(Rerho,Imrho,x1,x2,t));
       u1 = etavk * reduct * pert_XY(Reux,Imux,x1,x2,t);
       u3 = etavk * reduct * pert_XY(Reuz,Imuz,x1,x2,t);
@@ -289,17 +286,17 @@ void problem(DomainS *pDomain)
         for (ip=0;ip<Npar;ip++)
         {
 
-          if (ipert != 3) /* quasi-uniform distribution */
+          if (ipert != 4) /* quasi-uniform distribution */
             x1p = x1l+pGrid->dx1/Npar*(ip+0.5);
 
           for (jp=0;jp<Npar;jp++)
           {
-            if (ipert != 3) /* quasi-uniform distribution */
+            if (ipert != 4) /* quasi-uniform distribution */
               x2p = x2l+pGrid->dx2/Npar*(jp+0.5);
 
             for (kp=0;kp<Npar;kp++)
             {
-              if (ipert == 3){ /* ramdom particle position in the grid */
+              if (ipert == 4){ /* ramdom particle position in the grid */
                 x1p = x1min + Lx*ran2(&iseed);
                 x2p = x2min + Ly*ran2(&iseed);
                 x3p = x3min + Lz*ran2(&iseed);
@@ -318,7 +315,7 @@ void problem(DomainS *pDomain)
               pGrid->particle[p].x2 = x2p;
               pGrid->particle[p].x3 = x3p;
 
-              if ((ipert == 1) || (ipert == 2)) {
+              if ((ipert == 2) || (ipert == 3)) {
                 pGrid->particle[p].x1 += -paramp*(cos(kx*x1p)*cos(-ky*x2p) -
                                           sin(kx*x1p)*sin(-ky*x2p));
 
