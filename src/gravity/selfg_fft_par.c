@@ -114,7 +114,8 @@ nx2=pG->Nx[1]+2*nghost;
     for (i=is-nghost; i<=ie+nghost; i++){
       pG->Phi_old[k][j][i] = pG->Phi[k][j][i];
 #ifdef SHEARING_BOX
-      RollDen[k][i][j] = pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d;
+      //RollDen[k][i][j] = pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d;
+      RollDen[k][i][j] = pG->Coup[k][j][i].grid_d;
 #endif
     }
   }}
@@ -127,19 +128,21 @@ nx2=pG->Nx[1]+2*nghost;
 #endif
 
   for (k=ks; k<=ke; k++){
+
+    /*if(k==ks || k==ke){
+      ath_pout(0,"[fft_par] %d %d %d: density: %g\n", k,j,i, \
+                                    pG->Coup[k][j][i].grid_d);
+    }*/
+
   for (j=js; j<=je; j++){
     for (i=is; i<=ie; i++){
       work[F3DI(i-is,j-js,k-ks,pG->Nx[0],pG->Nx[1],pG->Nx[2])][0] = 
 #ifdef SHEARING_BOX
         RollDen[k][i][j] - grav_mean_rho;
 #else
-        pG->U[k][j][i].d - grav_mean_rho + pG->Coup[k][j][i].grid_d; 
+        //pG->U[k][j][i].d - grav_mean_rho + pG->Coup[k][j][i].grid_d; 
+        pG->Coup[k][j][i].grid_d - grav_mean_rho; 
 #endif
-      /*ath_pout(0,"[fft_par] %d %d %d: densities: %g %g %g\n", k,j,i, \
-                                    RollDen[k][j][i], \
-                                    grav_mean_rho, \
-                                    RollDen[k][j][i]-grav_mean_rho);
-      */
 
       work[F3DI(i-is,j-js,k-ks,pG->Nx[0],pG->Nx[1],pG->Nx[2])][1] = 0.0;
     }
@@ -259,26 +262,6 @@ nx2=pG->Nx[1]+2*nghost;
   }}
 
 
-  for (k=ks-(nghost-1); k<=ke+(nghost-1); k++){
-    for (j=js-(nghost-1); j<=je+(nghost-1); j++){
-      for (i=is-(nghost-1); i<=ie+(nghost-1); i++){
-         pG->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
-           ( 0.5*(pG->Phi[k][j][i+1]+pG->Phi_old[k][j][i+1]) - \ 
-             0.5*(pG->Phi[k][j][i-1]+pG->Phi_old[k][j][i-1]));
-
-         pG->GradPhiX2[k][j][i] = -0.5*cell1.x2* \
-           ( 0.5*(pG->Phi[k][j+1][i]+pG->Phi_old[k][j+1][i]) - \ 
-             0.5*(pG->Phi[k][j-1][i]+pG->Phi_old[k][j-1][i]));
-
-         pG->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
-           ( 0.5*(pG->Phi[k+1][j][i]+pG->Phi_old[k+1][j][i]) - \
-             0.5*(pG->Phi[k-1][j][i]+pG->Phi_old[k-1][j][i]));
-
-         //pG->GradPhiX2[k][j][i] = -0.5*cell1.x2*(pG->Phi[k][j+1][i]-pG->Phi[k][j-1][i]);
-      }
-    }
-  }
-
 
 #ifdef SHEARING_BOX
   RemapVar(pD,UnRollPhi,dt);
@@ -295,6 +278,43 @@ nx2=pG->Nx[1]+2*nghost;
   free_3d_array(UnRollPhi);
 #endif
 
+/*
+  for (k=ks-(nghost-1); k<=ke+(nghost-1); k++){
+    for (j=js-(nghost-1); j<=je+(nghost-1); j++){
+      for (i=is-(nghost-1); i<=ie+(nghost-1); i++){ 
+       pG->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
+           ( 0.5*(pG->Phi[k][j][i+1]+pG->Phi_old[k][j][i+1]) - \ 
+             0.5*(pG->Phi[k][j][i-1]+pG->Phi_old[k][j][i-1]));
+
+         pG->GradPhiX2[k][j][i] = -0.5*cell1.x2* \
+           ( 0.5*(pG->Phi[k][j+1][i]+pG->Phi_old[k][j+1][i]) - \ 
+             0.5*(pG->Phi[k][j-1][i]+pG->Phi_old[k][j-1][i]));
+
+         pG->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
+           ( 0.5*(pG->Phi[k+1][j][i]+pG->Phi_old[k+1][j][i]) - \
+             0.5*(pG->Phi[k-1][j][i]+pG->Phi_old[k-1][j][i]));
+
+       
+       if(k == ks && j == js && i == 31+is){
+          ath_pout(0, "(i,j,k): (%d,%d,%d)\n", i, j, k);
+          ath_pout(0, "Phi[k+1] = %g ; Phi_old[k+1] = %g ; Phi[k-1] = %g ; Phi_old[k-1] = %g\n",\
+               pG->Phi[k+1][j][i], pG->Phi_old[k+1][j][i], pG->Phi[k-1][j][i],
+               pG->Phi_old[k-1][j][i]);
+          ath_pout(0, "GradPhiX3: %g\n", pG->GradPhiX3[k][j][i]);
+         }
+
+       if(k == ks+1 && j == js && i == 31+is){
+          ath_pout(0, "(i,j,k): (%d,%d,%d)\n", i, j, k);
+          ath_pout(0, "Phi[k+1] = %g ; Phi_old[k+1] = %g ; Phi[k-1] = %g ; Phi_old[k-1] = %g\n",\
+               pG->Phi[k+1][j][i], pG->Phi_old[k+1][j][i], pG->Phi[k-1][j][i],
+               pG->Phi_old[k-1][j][i]);
+          ath_pout(0, "GradPhiX3: %g\n", pG->GradPhiX3[k][j][i]);
+         }
+       
+      }
+    }
+  }
+*/
 
 /*
   for (k=ks-(nghost-1); k<=ke+(nghost-1); k++){
@@ -305,6 +325,7 @@ nx2=pG->Nx[1]+2*nghost;
     }
   }
 */
+
   return;
 }
 

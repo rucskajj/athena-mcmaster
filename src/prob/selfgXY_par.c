@@ -146,7 +146,7 @@ void problem(DomainS *pDomain)
 #ifdef FEEDBACK
   grproperty[0].m = rho0*mratio/Npar3;
 #else
-  grav_mean_rho = rho0 + 1.0; // dust particle mass set to 1 in 
+  grav_mean_rho = 1.0; // dust particle mass set to 1 in 
                              // particle_to_grid routine with FB off
   mratio = 0.0;
 #endif
@@ -354,6 +354,7 @@ void problem(DomainS *pDomain)
 
 /* enroll gravitational potential function, shearing sheet BC functions */
   ShearingBoxPot = UnstratifiedDisk;
+  ShBoxCoord = xy;
 
   if (myID_Comm_world == 0) {
     /* flush output file */

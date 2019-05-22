@@ -51,6 +51,8 @@ Real3Vect Get_Force(GridS *pG, Real x1, Real x2, Real x3,
                                Real v1, Real v2, Real v3);
 #ifdef SELF_GRAVITY_USING_FFT_PAR
 Real3Vect Get_Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1);
+Real3Vect Get_N2Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1,
+                                   long cur_id);
 #endif 
 
 /*=========================== PUBLIC FUNCTIONS ===============================*/
@@ -305,7 +307,7 @@ void int_par_fulimp(GridS *pG, GrainS *curG, Real3Vect cell1,
 void int_par_semimp(GridS *pG, GrainS *curG, Real3Vect cell1, 
                               Real *dv1, Real *dv2, Real *dv3, Real *ts)
 {
-  Real3Vect fd, fg, fr, ft; /* drag force, grav force, 
+  Real3Vect fd, fg, fgN2, fr, ft; /* drag force, grav force, 
                                other forces, total force */
   Real ts1, b, b2;	/* other shortcut expressions */
   Real x1n, x2n, x3n;	/* first order new position at half a time step */
@@ -335,17 +337,32 @@ void int_par_semimp(GridS *pG, GrainS *curG, Real3Vect cell1,
 
   fr = Get_Force(pG, x1n, x2n, x3n, curG->v1, curG->v2, curG->v3);
 
+  ft.x1 = fd.x1+fr.x1;
+  ft.x2 = fd.x2+fr.x1;
+  ft.x3 = fd.x3+fr.x3;
+
 #ifdef SELF_GRAVITY_USING_FFT_PAR
   fg = Get_Gravity(pG, x1n, x2n, x3n, cell1);
-#endif
+  //fg = Get_N2Gravity(pG, x1n, x2n, x3n, cell1, curG->my_id);
 
-  //fd.x1 = 0.0; fd.x2 = 0.0; fd.x3 = 0.0; //Note: Turning off drag!
+  //ath_pout(0, "[par_semimp] Gravity compare. x1: %g %g ; \
+x2: %g %g ; x3: %g %g.\n",\
+          fg.x1, fgN2.x1, fg.x2, fgN2.x2, fg.x3, fgN2.x3);
+
+  //ath_pout(0, "[par_semimp] Force compare. x1: %g %g ; \
+x2: %g %g ; x3: %g %g.\n",\
+          fg.x1, fd.x1, fg.x2, fd.x2, ft.x3, fd.x3);
+
+  fd.x1 = 0.0; fd.x2 = 0.0; fd.x3 = 0.0; //Note: Turning off drag!
   //fr.x1 = 0.0; fr.x2 = 0.0; fr.x3 = 0.0; //Note: Turning off other forces!
   //fg.x1 = 0.0; fg.x2 = 0.0; fg.x3 = 0.0; //Note: Turning off gravity forces!
 
   ft.x1 = fd.x1+fr.x1+fg.x1;
   ft.x2 = fd.x2+fr.x1+fg.x2;
   ft.x3 = fd.x3+fr.x3+fg.x3;
+#endif
+
+
 
 /* step 3: calculate velocity update */
 
@@ -871,6 +888,71 @@ Real3Vect Get_Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1)
 
   return fg;
 }
+
+/*--------------------------------------------------------------------------- */
+/*! \fn Real3Vect Get_Gravity(GridS *pG, int type, Real x1, Real x2, Real x3,
+ *              Real3Vect cell1)
+ *  \brief Calculate the gravitational force to the particles 
+ *
+ * Input:
+ *   pG: grid;	cell1: 1/dx1,1/dx2,1/dx3;
+ *   x1,x2,x3: particle position;
+ *   cell1: 1/dx1,1/dx2,1/dx3;
+ * Return:
+ *   fg: gravitational force;
+ */
+Real3Vect Get_N2Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1, 
+                         long cur_id)
+{
+  int i,j,k, is,js,ks, p;
+  int n0 = ncell-1;
+  Real rho, u1, u2, u3, cs;
+  Real vd1, vd2, vd3, vd, tstop, ts1;
+#ifdef FEEDBACK
+  Real stiffness;
+#endif
+  Real weight[3][3][3];		/* weight function */
+  Real3Vect fg;
+  Real G = 1e-4;//1.0e-3/(12.56637); // four_pi_G / (4*pi)
+  Real mpar = 1.0; // single particle mass
+  Real x1disp, x2disp, x3disp, distminus3;
+
+  fg.x1 = fg.x2 = fg.x3 = 0.0;
+
+#ifndef FEEDBACK
+  if (getvalues(pG, weight, is, js, ks, &rho, &u1, &u2, &u3, &cs) == 0)
+#else
+  if (getvalues(pG, weight, is, js, ks, &rho,&u1,&u2,&u3,&cs, &stiffness) == 0)
+#endif
+  { /* particle in the grid */
+
+  while (p<pG->nparticle){
+    //ath_pout(0, "[N2Gravity]: par_id = %d, %d\n",pG->particle[p].my_id, cur_id);
+    if(pG->particle[p].my_id != cur_id){
+	x1disp = (pG->particle[p].x1+0.5*pG->particle[p].v1*pG->dt)-x1;
+	x2disp = (pG->particle[p].x2+0.5*pG->particle[p].v2*pG->dt)-x2;
+	x3disp = (pG->particle[p].x3+0.5*pG->particle[p].v3*pG->dt)-x3;
+
+    distminus3 = pow(SQR(x1disp) + SQR(x2disp) + SQR(x3disp), -1.5); 
+
+    fg.x1 += G*mpar*x1disp*distminus3;
+    fg.x2 += G*mpar*x2disp*distminus3;
+    fg.x3 += G*mpar*x3disp*distminus3;
+    }
+
+    p++;
+  }
+
+  }
+  else
+  { /* particle out of the grid, free motion, with warning sign */
+    ath_perr(0, "Particle move out of grid %d with position (%f,%f,%f)!\n",
+                                      myID_Comm_world,x1,x2,x3); /* warning! */
+  }
+
+  return fg;
+}
+
 #endif /* SELF_GRAVITY_USING_FFT_PAR */
 
 #endif /*PARTICLES*/
