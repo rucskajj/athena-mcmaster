@@ -30,6 +30,8 @@
 #include "../globals.h"
 #include "prototypes.h"
 #include "../prototypes.h"
+#include "../particles/prototypes.h"
+#include "../particles/particle.h"
 
 #ifdef SELF_GRAVITY_USING_FFT
 
@@ -364,6 +366,10 @@ void selfg_fft_3d(DomainS *pD)
   Real dx1sq=(pG->dx1*pG->dx1),dx2sq=(pG->dx2*pG->dx2),dx3sq=(pG->dx3*pG->dx3);
   Real dkx,dky,dkz,pcoeff;
 
+#ifdef PARTICLES
+  particle_to_grid(pD, property_all);
+#endif
+
 #ifdef SHEARING_BOX
   Real qomt,Lx,Ly,dt;
   Real kxtdx;
@@ -398,8 +404,13 @@ void selfg_fft_3d(DomainS *pD)
     for (i=is-nghost; i<=ie+nghost; i++){
       pG->Phi_old[k][j][i] = pG->Phi[k][j][i];
 #ifdef SHEARING_BOX
+#ifdef PARTICLES
+      //RollDen[k][i][j] = pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d;
+      RollDen[k][i][j] = pG->Coup[k][j][i].grid_d;
+#else 
       RollDen[k][i][j] = pG->U[k][j][i].d;
-#endif
+#endif /* PARTICLES */
+#endif /* SHEARING BOX */
     }
   }}
 
@@ -417,8 +428,13 @@ void selfg_fft_3d(DomainS *pD)
 #ifdef SHEARING_BOX
         RollDen[k][i][j] - grav_mean_rho;
 #else
+#ifdef PARTICLES
+        //pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d - grav_mean_rho; 
+        pG->Coup[k][j][i].grid_d - grav_mean_rho;
+#else
         pG->U[k][j][i].d - grav_mean_rho;
-#endif
+#endif /* PARTICLES */
+#endif /* SHEARING BOX */
       work[F3DI(i-is,j-js,k-ks,pG->Nx[0],pG->Nx[1],pG->Nx[2])][1] = 0.0;
     }
   }}

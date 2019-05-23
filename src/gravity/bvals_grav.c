@@ -841,6 +841,7 @@ void bvals_grav_fun(DomainS *pD, enum BCDirection dir, VGFun_t prob_bc)
  * where ???=[ix1,ox1,ix2,ox2,ix3,ox3]
  */
 
+#ifdef PARTICLES
 /*----------------------------------------------------------------------------*/
 /*! \fn static void calcGradPhi(GridS *pGrid)
  *  \brief Calculate GradPhi if particle module is compiled
@@ -862,33 +863,34 @@ static void calcGradPhi(GridS *pGrid)
     for (j=js-(nghost-1); j<=je+(nghost-1); j++){
       for (i=is-(nghost-1); i<=ie+(nghost-1); i++){
 
-       if(pGrid->time == 0.0){ /* First step, no Phi_old for average */
-         pGrid->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
+        if(pGrid->time == 0.0){ /* First step, no Phi_old for average */
+          pGrid->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
            ( pGrid->Phi[k][j][i+1] - pGrid->Phi[k][j][i-1] );
 
-         pGrid->GradPhiX2[k][j][i] = -0.5*cell1.x2* \
+          pGrid->GradPhiX2[k][j][i] = -0.5*cell1.x2* \
            ( pGrid->Phi[k][j+1][i] - pGrid->Phi[k][j-1][i] );
 
-         pGrid->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
+          pGrid->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
            ( pGrid->Phi[k+1][j][i] - pGrid->Phi[k-1][j][i] );
-       }
-       else{ /* Average Phi with Phi_old */
-         pGrid->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
-           ( 0.5*(pGrid->Phi[k][j][i+1]+pGrid->Phi_old[k][j][i+1]) - \
-             0.5*(pGrid->Phi[k][j][i-1]+pGrid->Phi_old[k][j][i-1]));
+        }
+        else{ /* Average Phi with Phi_old */
+          pGrid->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
+            ( 0.5*(pGrid->Phi[k][j][i+1]+pGrid->Phi_old[k][j][i+1]) - \
+              0.5*(pGrid->Phi[k][j][i-1]+pGrid->Phi_old[k][j][i-1]));
 
-         pGrid->GradPhiX2[k][j][i] = -0.5*cell1.x2* \
-           ( 0.5*(pGrid->Phi[k][j+1][i]+pGrid->Phi_old[k][j+1][i]) - \
-             0.5*(pGrid->Phi[k][j-1][i]+pGrid->Phi_old[k][j-1][i]));
+          pGrid->GradPhiX2[k][j][i] = -0.5*cell1.x2* \
+            ( 0.5*(pGrid->Phi[k][j+1][i]+pGrid->Phi_old[k][j+1][i]) - \
+              0.5*(pGrid->Phi[k][j-1][i]+pGrid->Phi_old[k][j-1][i]));
 
-         pGrid->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
-           ( 0.5*(pGrid->Phi[k+1][j][i]+pGrid->Phi_old[k+1][j][i]) - \
-             0.5*(pGrid->Phi[k-1][j][i]+pGrid->Phi_old[k-1][j][i]));
-       }
+          pGrid->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
+            ( 0.5*(pGrid->Phi[k+1][j][i]+pGrid->Phi_old[k+1][j][i]) - \
+              0.5*(pGrid->Phi[k-1][j][i]+pGrid->Phi_old[k-1][j][i]));
+        }
       }
     }
   }
 }
+#endif
 
 /*----------------------------------------------------------------------------*/
 /*! \fn static void reflect_Phi_ix1(GridS *pGrid)

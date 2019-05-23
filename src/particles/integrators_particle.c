@@ -49,7 +49,7 @@ Real3Vect Get_Drag(GridS *pG, int type, Real x1, Real x2, Real x3,
                 Real v1, Real v2, Real v3, Real3Vect cell1, Real *tstop1);
 Real3Vect Get_Force(GridS *pG, Real x1, Real x2, Real x3,
                                Real v1, Real v2, Real v3);
-#ifdef SELF_GRAVITY_USING_FFT_PAR
+#ifdef PARTICLES
 Real3Vect Get_Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1);
 Real3Vect Get_N2Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1,
                                    long cur_id);
@@ -341,7 +341,7 @@ void int_par_semimp(GridS *pG, GrainS *curG, Real3Vect cell1,
   ft.x2 = fd.x2+fr.x1;
   ft.x3 = fd.x3+fr.x3;
 
-#ifdef SELF_GRAVITY_USING_FFT_PAR
+#ifdef SELF_GRAVITY
   fg = Get_Gravity(pG, x1n, x2n, x3n, cell1);
   //fg = Get_N2Gravity(pG, x1n, x2n, x3n, cell1, curG->my_id);
 
@@ -360,7 +360,7 @@ x2: %g %g ; x3: %g %g.\n",\
   ft.x1 = fd.x1+fr.x1+fg.x1;
   ft.x2 = fd.x2+fr.x1+fg.x2;
   ft.x3 = fd.x3+fr.x3+fg.x3;
-#endif
+#endif /* SELF_GRAVITY */
 
 
 
@@ -823,7 +823,7 @@ Real3Vect Get_Force(GridS *pG, Real x1, Real x2, Real x3,
   return ft;
 }
 
-#ifdef SELF_GRAVITY_USING_FFT_PAR
+#ifdef SELF_GRAVITY
 
 /*--------------------------------------------------------------------------- */
 /*! \fn Real3Vect Get_Gravity(GridS *pG, int type, Real x1, Real x2, Real x3,
@@ -873,9 +873,7 @@ Real3Vect Get_Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1)
           /* interpolate the particles to the grid */
           fg.x1  += weight[k0][j0][i0]*pG->GradPhiX1[k][j][i];
           fg.x2  += weight[k0][j0][i0]*pG->GradPhiX2[k][j][i];
-          fg.x3  += weight[k0][j0][i0]*pG->GradPhiX3[k][j][i];
-
-          
+          fg.x3  += weight[k0][j0][i0]*pG->GradPhiX3[k][j][i]; 
         }
       }
     }
@@ -953,6 +951,6 @@ Real3Vect Get_N2Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1,
   return fg;
 }
 
-#endif /* SELF_GRAVITY_USING_FFT_PAR */
+#endif /* SELF_GRAVITY */
 
 #endif /*PARTICLES*/

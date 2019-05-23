@@ -557,6 +557,15 @@ VDFun_t selfg_init(MeshS *pM)
 
 /* for gravity using FFTs, also initialize plans and data for FFTW */
 #ifdef SELF_GRAVITY_USING_FFT
+#ifdef PARTICLES
+  case 1:
+    ath_error("[selfg_init] FFT with particles not yet implemented for 1D \n");
+  case 2:
+    ath_error("[selfg_init] FFT with particles not yet implemented for 2D \n");
+  case 3:
+    selfg_fft_3d_init(pM);
+    return selfg_fft_3d;
+#else
   case 1:
     return selfg_fft_1d;
   case 2:
@@ -568,17 +577,8 @@ VDFun_t selfg_init(MeshS *pM)
   case 3:
     selfg_fft_3d_init(pM);
     return selfg_fft_3d;
-#endif
-
-#ifdef SELF_GRAVITY_USING_FFT_PAR
-  case 1:
-    ath_error("[selfg_init] FFT with particles not yet implemented for 1D \n");
-  case 2:
-    ath_error("[selfg_init] FFT with particles not yet implemented for 2D \n");
-  case 3:
-    selfg_fft_par_3d_init(pM);
-    return selfg_fft_par_3d;
-#endif
+#endif /* PARTICLES */
+#endif /* SELF_GRAVITY_USING_FFT */
 
 /* for gravity using FFTs in Disk Geometry, also initialize plans and data for FFTW */
 #ifdef SELF_GRAVITY_USING_FFT_DISK
