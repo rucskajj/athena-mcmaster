@@ -35,11 +35,15 @@ static MPI_Request *recv_rq, *send_rq;
 
 /*==============================================================================
  * PRIVATE FUNCTION PROTOTYPES:
+ *   calcGradPhi() - calculate GradPhi for particle gravity
  *   reflect_Phi_???()  - apply reflecting BCs at boundary ???
  *   periodic_Phi_???() - apply periodic BCs at boundary ???
  *   pack_Phi_???()   - pack data for MPI non-blocking send at ??? boundary
  *   unpack_Phi_???() - unpack data for MPI non-blocking receive at ??? boundary
  *============================================================================*/
+#ifdef PARTICLES
+static void calcGradPhi(GridS *pGrid);
+#endif
 
 static void reflect_Phi_ix1(GridS *pG);
 static void reflect_Phi_ox1(GridS *pG);
@@ -406,69 +410,9 @@ void bvals_grav(DomainS *pD)
 
   }
 
-
-  int i, is = pGrid->is, ie = pGrid->ie;
-  int j, js = pGrid->js, je = pGrid->je;
-  int k, ks = pGrid->ks, ke = pGrid->ke;
-
-  Real3Vect cell1;              /* one over dx1, dx2, dx3 */
-  /* cell1 is a shortcut expressions as well as dimension indicator */
-  if (pGrid->Nx[0] > 1)  cell1.x1 = 1.0/pGrid->dx1;  else cell1.x1 = 0.0;
-  if (pGrid->Nx[1] > 1)  cell1.x2 = 1.0/pGrid->dx2;  else cell1.x2 = 0.0;
-  if (pGrid->Nx[2] > 1)  cell1.x3 = 1.0/pGrid->dx3;  else cell1.x3 = 0.0;
-
-
-  for (k=ks-(nghost-1); k<=ke+(nghost-1); k++){
-    for (j=js-(nghost-1); j<=je+(nghost-1); j++){
-      for (i=is-(nghost-1); i<=ie+(nghost-1); i++){
-
-       if(pGrid->time == 0.0){ /* First step, no Phi average */
-         pGrid->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
-           ( pGrid->Phi[k][j][i+1] - pGrid->Phi[k][j][i-1] );
-
-         pGrid->GradPhiX2[k][j][i] = -0.5*cell1.x2* \
-           ( pGrid->Phi[k][j+1][i] - pGrid->Phi[k][j-1][i] );
-
-         pGrid->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
-           ( pGrid->Phi[k+1][j][i] - pGrid->Phi[k-1][j][i] );
-
-       }
-       else{ /* Average Phi with Phi_old */
-         pGrid->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
-           ( 0.5*(pGrid->Phi[k][j][i+1]+pGrid->Phi_old[k][j][i+1]) - \
-             0.5*(pGrid->Phi[k][j][i-1]+pGrid->Phi_old[k][j][i-1]));
-
-         pGrid->GradPhiX2[k][j][i] = -0.5*cell1.x2* \
-           ( 0.5*(pGrid->Phi[k][j+1][i]+pGrid->Phi_old[k][j+1][i]) - \
-             0.5*(pGrid->Phi[k][j-1][i]+pGrid->Phi_old[k][j-1][i]));
-
-         pGrid->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
-           ( 0.5*(pGrid->Phi[k+1][j][i]+pGrid->Phi_old[k+1][j][i]) - \
-             0.5*(pGrid->Phi[k-1][j][i]+pGrid->Phi_old[k-1][j][i]));
-       }
-
-       if(k == ks && j == js && i == 31+is){
-          ath_pout(0, "time: %g\n", pGrid->time);
-          ath_pout(0, "(i,j,k): (%d,%d,%d)\n", i, j, k);
-          ath_pout(0, "Phi[k+1] = %g ; Phi_old[k+1] = %g ; Phi[k-1] = %g ; Phi_old[k-1] = %g\n",\
-               pGrid->Phi[k+1][j][i], pGrid->Phi_old[k+1][j][i], pGrid->Phi[k-1][j][i],
-               pGrid->Phi_old[k-1][j][i]);
-          ath_pout(0, "GradPhiX3: %g\n", pGrid->GradPhiX3[k][j][i]);
-         }
-
-       if(k == ks+1 && j == js && i == 31+is){
-          ath_pout(0, "(i,j,k): (%d,%d,%d)\n", i, j, k);
-          ath_pout(0, "Phi[k+1] = %g ; Phi_old[k+1] = %g ; Phi[k-1] = %g ; Phi_old[k-1] = %g\n",\
-               pGrid->Phi[k+1][j][i], pGrid->Phi_old[k+1][j][i], pGrid->Phi[k-1][j][i],
-               pGrid->Phi_old[k-1][j][i]);
-          ath_pout(0, "GradPhiX3: %g\n", pGrid->GradPhiX3[k][j][i]);
-         }
-
-      }
-    }
-  }
-
-
+#ifdef PARTICLES
+  calcGradPhi(pGrid);
+#endif
 
   return;
 }
@@ -889,12 +833,62 @@ void bvals_grav_fun(DomainS *pD, enum BCDirection dir, VGFun_t prob_bc)
 
 /*=========================== PRIVATE FUNCTIONS ==============================*/
 /* Following are the functions:
+ *   calcGradPhi() - calculate GradPhi for particle gravity
  *   reflecting_???
  *   periodic_???
  *   send_???
  *   receive_???
  * where ???=[ix1,ox1,ix2,ox2,ix3,ox3]
  */
+
+/*----------------------------------------------------------------------------*/
+/*! \fn static void calcGradPhi(GridS *pGrid)
+ *  \brief Calculate GradPhi if particle module is compiled
+ */
+static void calcGradPhi(GridS *pGrid)
+{
+  int i, is = pGrid->is, ie = pGrid->ie;
+  int j, js = pGrid->js, je = pGrid->je;
+  int k, ks = pGrid->ks, ke = pGrid->ke;
+
+  Real3Vect cell1;              /* one over dx1, dx2, dx3 */
+  /* cell1 is a shortcut expressions as well as dimension indicator */
+  if (pGrid->Nx[0] > 1)  cell1.x1 = 1.0/pGrid->dx1;  else cell1.x1 = 0.0;
+  if (pGrid->Nx[1] > 1)  cell1.x2 = 1.0/pGrid->dx2;  else cell1.x2 = 0.0;
+  if (pGrid->Nx[2] > 1)  cell1.x3 = 1.0/pGrid->dx3;  else cell1.x3 = 0.0;
+
+
+  for (k=ks-(nghost-1); k<=ke+(nghost-1); k++){
+    for (j=js-(nghost-1); j<=je+(nghost-1); j++){
+      for (i=is-(nghost-1); i<=ie+(nghost-1); i++){
+
+       if(pGrid->time == 0.0){ /* First step, no Phi_old for average */
+         pGrid->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
+           ( pGrid->Phi[k][j][i+1] - pGrid->Phi[k][j][i-1] );
+
+         pGrid->GradPhiX2[k][j][i] = -0.5*cell1.x2* \
+           ( pGrid->Phi[k][j+1][i] - pGrid->Phi[k][j-1][i] );
+
+         pGrid->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
+           ( pGrid->Phi[k+1][j][i] - pGrid->Phi[k-1][j][i] );
+       }
+       else{ /* Average Phi with Phi_old */
+         pGrid->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
+           ( 0.5*(pGrid->Phi[k][j][i+1]+pGrid->Phi_old[k][j][i+1]) - \
+             0.5*(pGrid->Phi[k][j][i-1]+pGrid->Phi_old[k][j][i-1]));
+
+         pGrid->GradPhiX2[k][j][i] = -0.5*cell1.x2* \
+           ( 0.5*(pGrid->Phi[k][j+1][i]+pGrid->Phi_old[k][j+1][i]) - \
+             0.5*(pGrid->Phi[k][j-1][i]+pGrid->Phi_old[k][j-1][i]));
+
+         pGrid->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
+           ( 0.5*(pGrid->Phi[k+1][j][i]+pGrid->Phi_old[k+1][j][i]) - \
+             0.5*(pGrid->Phi[k-1][j][i]+pGrid->Phi_old[k-1][j][i]));
+       }
+      }
+    }
+  }
+}
 
 /*----------------------------------------------------------------------------*/
 /*! \fn static void reflect_Phi_ix1(GridS *pGrid)
