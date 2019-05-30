@@ -402,7 +402,7 @@ void selfg_fft_3d(DomainS *pD)
   for (k=ks-nghost; k<=ke+nghost; k++){
   for (j=js-nghost; j<=je+nghost; j++){
     for (i=is-nghost; i<=ie+nghost; i++){
-      pG->Phi_old[k][j][i] = pG->Phi[k][j][i];
+      pG->Phi_old[k][j][i] = pG->Phi_par[k][j][i];
 #ifdef SHEARING_BOX
 #ifdef PARTICLES
       //RollDen[k][i][j] = pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d;
@@ -429,8 +429,8 @@ void selfg_fft_3d(DomainS *pD)
         RollDen[k][i][j] - grav_mean_rho;
 #else
 #ifdef PARTICLES
-        //pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d - grav_mean_rho; 
-        pG->Coup[k][j][i].grid_d - grav_mean_rho;
+      //pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d - grav_mean_rho; 
+      pG->Coup[k][j][i].grid_d - grav_mean_rho;
 #else
         pG->U[k][j][i].d - grav_mean_rho;
 #endif /* PARTICLES */

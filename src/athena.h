@@ -304,6 +304,7 @@ typedef struct Grid_s{
 #ifdef SELF_GRAVITY
   Real ***Phi, ***Phi_old;      /*!< gravitational potential */
 #ifdef PARTICLES
+  Real ***Phi_par;
   Real ***GradPhiX1;
   Real ***GradPhiX2;
   Real ***GradPhiX3;

@@ -43,6 +43,7 @@ static MPI_Request *recv_rq, *send_rq;
  *============================================================================*/
 #ifdef PARTICLES
 static void calcGradPhi(GridS *pGrid);
+static void copyPhiPar(GridS *pGrid);
 #endif
 
 static void reflect_Phi_ix1(GridS *pG);
@@ -412,6 +413,7 @@ void bvals_grav(DomainS *pD)
 
 #ifdef PARTICLES
   calcGradPhi(pGrid);
+  copyPhiPar(pGrid);
 #endif
 
   return;
@@ -863,7 +865,7 @@ static void calcGradPhi(GridS *pGrid)
     for (j=js-(nghost-1); j<=je+(nghost-1); j++){
       for (i=is-(nghost-1); i<=ie+(nghost-1); i++){
 
-        if(pGrid->time == 0.0){ /* First step, no Phi_old for average */
+        //if(pGrid->time == 0.0){ /* First step, no Phi_old for average */
           pGrid->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
            ( pGrid->Phi[k][j][i+1] - pGrid->Phi[k][j][i-1] );
 
@@ -872,8 +874,8 @@ static void calcGradPhi(GridS *pGrid)
 
           pGrid->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
            ( pGrid->Phi[k+1][j][i] - pGrid->Phi[k-1][j][i] );
-        }
-        else{ /* Average Phi with Phi_old */
+        //}
+        /*else{ Average Phi with Phi_old 
           pGrid->GradPhiX1[k][j][i] = -0.5*cell1.x1* \
             ( 0.5*(pGrid->Phi[k][j][i+1]+pGrid->Phi_old[k][j][i+1]) - \
               0.5*(pGrid->Phi[k][j][i-1]+pGrid->Phi_old[k][j][i-1]));
@@ -885,7 +887,35 @@ static void calcGradPhi(GridS *pGrid)
           pGrid->GradPhiX3[k][j][i] = -0.5*cell1.x3* \
             ( 0.5*(pGrid->Phi[k+1][j][i]+pGrid->Phi_old[k+1][j][i]) - \
               0.5*(pGrid->Phi[k-1][j][i]+pGrid->Phi_old[k-1][j][i]));
+
+        if(k == 10){
+          ath_pout(0,"[i,j,k]: [%d,%d,%d] ; Phi, Phi_old: %g %g ; cell1.x1: %g; dx1: %g\n", i,j,k, pGrid->Phi[k][j][i], pGrid->Phi_old[k][j][i], cell1.x1, pGrid->dx1);
         }
+
+
+        }*/
+      }
+    }
+  }
+}
+
+/*----------------------------------------------------------------------------*/
+/*! \fn static void calcPhiPar(GridS *pGrid)
+ *  \brief Copy Phi to Phi_par to remove gravity force calculation for gas
+ */
+static void copyPhiPar(GridS *pGrid)
+{
+  int i, is = pGrid->is, ie = pGrid->ie;
+  int j, js = pGrid->js, je = pGrid->je;
+  int k, ks = pGrid->ks, ke = pGrid->ke;
+
+  for (k=ks-(nghost); k<=ke+(nghost); k++){
+    for (j=js-(nghost); j<=je+(nghost); j++){
+      for (i=is-(nghost); i<=ie+(nghost); i++){
+        pGrid->Phi_par[k][j][i] = pGrid->Phi[k][j][i];
+
+        pGrid->Phi[k][j][i] = 0.0;
+        pGrid->Phi_old[k][j][i] = 0.0;
       }
     }
   }

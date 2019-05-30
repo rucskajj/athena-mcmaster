@@ -184,6 +184,9 @@ void problem(DomainS *pDomain)
 
   kx    = 2.0*PI/Lx*nwaveX;
   ky    = 2.0*PI/Ly*nwaveY;
+
+  ath_pout(0, "ky: %f\n", ky);
+
   /* Reset isothermal sound speed */
   cs = 1.0; // set cs to 1.0, box size set in python to vary k*eta*r
   Iso_csound = cs;

@@ -338,7 +338,7 @@ void int_par_semimp(GridS *pG, GrainS *curG, Real3Vect cell1,
   fr = Get_Force(pG, x1n, x2n, x3n, curG->v1, curG->v2, curG->v3);
 
   ft.x1 = fd.x1+fr.x1;
-  ft.x2 = fd.x2+fr.x1;
+  ft.x2 = fd.x2+fr.x2;
   ft.x3 = fd.x3+fr.x3;
 
 #ifdef SELF_GRAVITY
@@ -347,22 +347,25 @@ void int_par_semimp(GridS *pG, GrainS *curG, Real3Vect cell1,
 
   //ath_pout(0, "[par_semimp] Gravity compare. x1: %g %g ; \
 x2: %g %g ; x3: %g %g.\n",\
-          fg.x1, fgN2.x1, fg.x2, fgN2.x2, fg.x3, fgN2.x3);
+ 00         fg.x1, fgN2.x1, fg.x2, fgN2.x2, fg.x3, fgN2.x3);
 
   //ath_pout(0, "[par_semimp] Force compare. x1: %g %g ; \
 x2: %g %g ; x3: %g %g.\n",\
           fg.x1, fd.x1, fg.x2, fd.x2, ft.x3, fd.x3);
 
-  fd.x1 = 0.0; fd.x2 = 0.0; fd.x3 = 0.0; //Note: Turning off drag!
+  //fd.x1 = 0.0; fd.x2 = 0.0; fd.x3 = 0.0; //Note: Turning off drag!
   //fr.x1 = 0.0; fr.x2 = 0.0; fr.x3 = 0.0; //Note: Turning off other forces!
   //fg.x1 = 0.0; fg.x2 = 0.0; fg.x3 = 0.0; //Note: Turning off gravity forces!
 
   ft.x1 = fd.x1+fr.x1+fg.x1;
-  ft.x2 = fd.x2+fr.x1+fg.x2;
+  ft.x2 = fd.x2+fr.x2+fg.x2;
   ft.x3 = fd.x3+fr.x3+fg.x3;
 #endif /* SELF_GRAVITY */
 
-
+  /*ath_pout(0, "[x1] ft: %g; fd: %g; fr: %g, fg: %g\n", ft.x1,fd.x1,fr.x1,fg.x1);
+  ath_pout(0, "[x2] ft: %g; fd: %g; fr: %g, fg: %g\n", ft.x2,fd.x2,fr.x2,fg.x2);
+  ath_pout(0, "[x3] ft: %g; fd: %g; fr: %g, fg: %g\n", ft.x3,fd.x3,fr.x3,fg.x3);
+  */
 
 /* step 3: calculate velocity update */
 
@@ -858,6 +861,8 @@ Real3Vect Get_Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1)
   j1 = MAX(js, jlp);    j2 = MIN(js+n0, jup);
   i1 = MAX(is, ilp);    i2 = MIN(is+n0, iup);
 
+  Real weightsum = 0.0;
+
 #ifndef FEEDBACK
   if (getvalues(pG, weight, is, js, ks, &rho, &u1, &u2, &u3, &cs) == 0)
 #else
@@ -902,7 +907,7 @@ Real3Vect Get_Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1)
 Real3Vect Get_N2Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1, 
                          long cur_id)
 {
-  int i,j,k, is,js,ks, p;
+  int i,j,k, is,js,ks, p=0;
   int n0 = ncell-1;
   Real rho, u1, u2, u3, cs;
   Real vd1, vd2, vd3, vd, tstop, ts1;
@@ -911,7 +916,7 @@ Real3Vect Get_N2Gravity(GridS *pG, Real x1, Real x2, Real x3, Real3Vect cell1,
 #endif
   Real weight[3][3][3];		/* weight function */
   Real3Vect fg;
-  Real G = 1e-4;//1.0e-3/(12.56637); // four_pi_G / (4*pi)
+  Real G = 1e-4;
   Real mpar = 1.0; // single particle mass
   Real x1disp, x2disp, x3disp, distminus3;
 

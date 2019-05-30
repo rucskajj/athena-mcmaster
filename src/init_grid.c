@@ -203,6 +203,9 @@ void init_grid(MeshS *pM)
       if (pG->Phi == NULL) goto on_error9;
 
 #ifdef PARTICLES
+      pG->Phi_par = (Real***)calloc_3d_array(n3z, n2z, n1z, sizeof(Real));
+      if (pG->Phi == NULL) goto on_error8;
+
       pG->GradPhiX1 = (Real***)calloc_3d_array(n3z, n2z, n1z, sizeof(Real));
       if (pG->GradPhiX1 == NULL) goto on_error8;
 
