@@ -313,18 +313,28 @@ void selfg_fft_disk_3d(DomainS *pD)
     }
   }
 
+  /* Bin particles to grid now, to compute dust density in grid_d */
+#ifdef PARTICLES
+  particle_to_grid(pD, property_all);
+#endif
+
+
 /* Copy current potential into old */
 
   for (k=ks-nghost; k<=ke+nghost; k++){
     for (j=js-nghost; j<=je+nghost; j++){
       for (i=is-nghost; i<=ie+nghost; i++){
         pG->Phi_old[k][j][i] = pG->Phi[k][j][i];
+
 #ifdef SHEARING_BOX
+#ifdef PARTICLES
+        //RollDen[k][i][j] = pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d;
+        RollDen[k][i][j] = pG->Coup[k][j][i].grid_d; // JR: just dust den
+#else
         RollDen[k][i][j] = pG->U[k][j][i].d;
-/* should add star particle density to RollDen using assign_starparticles_3d(pD,work), where work is the 1D
-version of grid.  Note that assign_starparticles_3d only fills active zones.  Does RemapVar really need
-the ghost zones? */
-#endif
+#endif /* PARTICLES */
+#endif /* SHEARING BOX */
+
       }
     }
   }
@@ -342,8 +352,13 @@ the ghost zones? */
 #ifdef SHEARING_BOX
         den=RollDen[k][i][j];
 #else
+#ifdef PARTICLES
+        //pG->U[k][j][i].d + pG->Coup[k][j][i].grid_d - grav_mean_rho; 
+        den=pG->Coup[k][j][i].grid_d;
+#else
         den=pG->U[k][j][i].d;
-#endif
+#endif /* PARTICLES */
+#endif /* SHEARING_BOX */
         work[F3DI(i-is,j-js,k-ks,pG->Nx[0],pG->Nx[1],pG->Nx[2])][0] = den;
       }
     }

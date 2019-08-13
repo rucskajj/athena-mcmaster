@@ -141,6 +141,11 @@ void problem(DomainS *pDomain)
   vsc1 = par_getd_def("problem","vsc1",0.05); /* in unit of iso_sound (N.B.!) */
   vsc2 = par_getd_def("problem","vsc2",0.0);
 
+#ifdef SELF_GRAVITY
+  four_pi_G = par_getd("problem","four_pi_G");
+  grav_mean_rho = 0.0; //rho0 * (1+mratio);
+#endif /* SELF_GRAVITY */
+
   vsc1 = vsc1 * Iso_csound;
   vsc2 = vsc2 * Iso_csound;
 
@@ -370,6 +375,11 @@ void problem_read_restart(MeshS *pM, FILE *fp)
   Omega_0 = par_getd("problem","omega");
   qshear = par_getd_def("problem","qshear",1.5);
   ipert = par_geti_def("problem","ipert",1);
+
+#ifdef SELF_GRAVITY
+  four_pi_G = par_getd("problem","four_pi_G");
+  grav_mean_rho = 0.0; //rho0 * (1+mratio);
+#endif /* SELF_GRAVITY */
 
   x1min = pG->MinX[0];
   x1max = pG->MaxX[0];

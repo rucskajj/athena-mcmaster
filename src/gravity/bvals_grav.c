@@ -411,6 +411,7 @@ void bvals_grav(DomainS *pD)
 
   }
 
+  
 #ifdef PARTICLES
   calcGradPhi(pGrid);
   copyPhiPar(pGrid);
@@ -920,7 +921,7 @@ static void copyPhiPar(GridS *pGrid)
     }
   }
 }
-#endif
+#endif /* PARTICLES */
 
 /*----------------------------------------------------------------------------*/
 /*! \fn static void reflect_Phi_ix1(GridS *pGrid)
