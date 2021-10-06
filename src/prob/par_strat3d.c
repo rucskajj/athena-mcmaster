@@ -64,6 +64,7 @@ Real dpar_thresh; /* threshold particle density */
  * ran2()            - random number generator
  * Normal()          - normal distribution generator
  * Erf()             - error function
+ * read_custom_gsd   - read in custom grain size distribution data
  * MultiNSH()        - multiple component NSH equilibrium solver
  * ShearingBoxPot()  - shearing box tidal gravitational potential
  * hst_rho_Vx_dVy()  - total Reynolds stress for history dump
@@ -74,6 +75,7 @@ double ran2(long int *idum);
 double Normal(long int *idum);
 Real Erf(Real z);
 
+void read_custom_gsd(int n, Real *tstop, Real *weights);
 void MultiNSH(int n, Real *tstop, Real *mratio, Real etavk,
                      Real *uxNSH, Real *uyNSH, Real *wxNSH, Real *wyNSH);
 static Real hst_rho_Vx_dVy(const GridS *pG,const int i,const int j,const int k);
@@ -98,13 +100,13 @@ extern Real expr_V2(const GridS *pG, const int i, const int j, const int k);
 void problem(DomainS *pDomain)
 {
   GridS *pGrid = pDomain->Grid;
-  int i,j,k,ks,pt,tsmode;
+  int i,j,k,ks,pt,tsmode,gsdmode;
   long p,q;
   Real ScaleHg,tsmin,tsmax,tscrit,amin,amax,Hparmin,Hparmax;
-  Real *ep,*ScaleHpar,epsum,mratio,pwind,rhoaconv,etavk;
+  Real *ep,*gsd_weights,*ScaleHpar,epsum,mratio,pwind,rhoaconv,etavk;
   Real *epsilon,*uxNSH,*uyNSH,**wxNSH,**wyNSH;
   Real rhog,h,x1,x2,x3,t,x1p,x2p,x3p,zmin,zmax,dx3_1,b;
-  long int iseed = myID_Comm_world; /* Initialize on the first call to ran2 */
+  long int iseed = myID_Comm_world+10; /* Initialize on the first call to ran2 */
 
   if (pDomain->Nx[2] == 1) {
     ath_error("[par_strat3d]: par_strat3d only works for 3D problem.\n");
@@ -162,6 +164,7 @@ void problem(DomainS *pDomain)
     particle_realloc(pGrid, pGrid->nparticle+2);
 
   ep = (Real*)calloc_1d_array(npartypes, sizeof(Real));
+  gsd_weights = (Real*)calloc_1d_array(npartypes, sizeof(Real));
   ScaleHpar = (Real*)calloc_1d_array(npartypes, sizeof(Real));
 
   epsilon = (Real*)calloc_1d_array(npartypes, sizeof(Real));
@@ -172,19 +175,36 @@ void problem(DomainS *pDomain)
 
   /* particle stopping time */
   tsmode = par_geti("particle","tsmode");
-  if (tsmode == 3) {/* fixed stopping time */
-    tsmin = par_getd("problem","tsmin"); /* in code unit */
-    tsmax = par_getd("problem","tsmax");
-    tscrit= par_getd("problem","tscrit");
+  gsdmode = par_geti_def("particle","gsdmode", 1);
 
-    for (i=0; i<npartypes; i++) {
-      tstop0[i] = tsmin*exp(i*log(tsmax/tsmin)/MAX(npartypes-1,1.0));
-      grproperty[i].rad = tstop0[i];
-      /* use fully implicit integrator for well coupled particles */
-      if (tstop0[i] < tscrit) grproperty[i].integrator = 3;
+  if (tsmode == 3) {/* fixed stopping time */
+    if (gsdmode == 1) { /* no custom grain size */
+      tsmin = par_getd("problem","tsmin"); /* in code unit */
+      tsmax = par_getd("problem","tsmax");
+      tscrit= par_getd("problem","tscrit");
+
+      for (i=0; i<npartypes; i++) {
+        tstop0[i] = tsmin*exp(i*log(tsmax/tsmin)/MAX(npartypes-1,1.0));
+        grproperty[i].rad = tstop0[i];
+        /* use fully implicit integrator for well coupled particles */
+        if (tstop0[i] < tscrit) grproperty[i].integrator = 3;
+      }
+    }
+    if (gsdmode == 2) {
+      read_custom_gsd(npartypes, tstop0, gsd_weights);
+  
+      for(int i=0; i<npartypes; i++) {
+        grproperty[i].rad = tstop0[i];
+        /* use fully implicit integrator for well coupled particles */
+        if (tstop0[i] < tscrit) grproperty[i].integrator = 3;
+      }
     }
   }
   else { 
+    if (gsdmode != 1) {
+      ath_error("[par_strat3d]: Custom sizes only implemented for tsmode=3.\n");
+    }
+
     amin = par_getd("problem","amin");
     amax = par_getd("problem","amax");
 
@@ -353,6 +373,7 @@ void problem(DomainS *pDomain)
 
 /*==============================================================================
  * PROBLEM USER FUNCTIONS:
+ * read_custom_gsd         - read in data for custom grain size distribution
  * problem_write_restart() - writes problem-specific user data to restart files
  * problem_read_restart()  - reads problem-specific user data from restart files
  * get_usr_expr()          - sets pointer to expression for special output data
@@ -360,6 +381,24 @@ void problem(DomainS *pDomain)
  * Userwork_in_loop        - problem specific work IN     main loop
  * Userwork_after_loop     - problem specific work AFTER  main loop
  *----------------------------------------------------------------------------*/
+
+void read_custom_gsd(int n, Real *tstop, Real *weights)
+{
+  FILE *fp;
+  char *gsd_filename = par_gets("problem","cust_gsd_file"); 
+  ath_pout(0,"custom_gsd file opening: %s\n", gsd_filename);
+  fp = fopen(gsd_filename,"r");
+  if (fp == NULL)  
+    ath_error("Custom grain size distrubtion file %s could not be opened.\n"
+      ,gsd_filename);
+
+  for(int i=0; i<n; i++) {
+    fscanf(fp, "%lf", &tstop[i]);
+    fscanf(fp, "%lf", &weights[i]);
+    //ath_pout(0,"[custom gsd]: %d, %e, %e \n", i, tstop[i], weights[i]);
+  }
+  return;
+}
 
 void problem_write_restart(MeshS *pM, FILE *fp)
 {
