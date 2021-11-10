@@ -100,7 +100,7 @@ extern Real expr_V2(const GridS *pG, const int i, const int j, const int k);
 void problem(DomainS *pDomain)
 {
   GridS *pGrid = pDomain->Grid;
-  int i,j,k,ks,pt,tsmode,gsdmode;
+  int i,j,k,ks,pt,tsmode,gsdmode,weightmode;
   long p,q;
   Real ScaleHg,tsmin,tsmax,tscrit,amin,amax,Hparmin,Hparmax;
   Real *ep,*gsd_weights,*ScaleHpar,epsum,mratio,pwind,rhoaconv,etavk;
@@ -176,12 +176,13 @@ void problem(DomainS *pDomain)
   /* particle stopping time */
   tsmode = par_geti("particle","tsmode");
   gsdmode = par_geti_def("particle","gsdmode", 1);
+  weightmode = par_geti_def("particle","weightmode", 1);
 
   if (tsmode == 3) {/* fixed stopping time */
-    if (gsdmode == 1) { /* no custom grain size */
+    tscrit= par_getd("problem","tscrit");
+    if (gsdmode == 1) { /* uniform grain size dist */
       tsmin = par_getd("problem","tsmin"); /* in code unit */
       tsmax = par_getd("problem","tsmax");
-      tscrit= par_getd("problem","tscrit");
 
       for (i=0; i<npartypes; i++) {
         tstop0[i] = tsmin*exp(i*log(tsmax/tsmin)/MAX(npartypes-1,1.0));
@@ -190,7 +191,7 @@ void problem(DomainS *pDomain)
         if (tstop0[i] < tscrit) grproperty[i].integrator = 3;
       }
     }
-    if (gsdmode == 2) {
+    if (gsdmode == 2) { /* custom grain size dist */
       read_custom_gsd(npartypes, tstop0, gsd_weights);
   
       for(int i=0; i<npartypes; i++) {
@@ -236,20 +237,42 @@ void problem(DomainS *pDomain)
   if (mratio < 0.0)
     ath_error("[par_strat2d]: mratio must be positive!\n");
 
-  epsum = 0.0;
-  for (i=0; i<npartypes; i++)
-  {
-    ep[i] = pow(grproperty[i].rad,pwind);	epsum += ep[i];
+  if (gsdmode == 1){ /* uniform grain size dist */
+    epsum = 0.0;
+    for (i=0; i<npartypes; i++)
+    {
+      ep[i] = pow(grproperty[i].rad,pwind);	epsum += ep[i];
+    }
+
+    for (i=0; i<npartypes; i++)
+    {
+      ep[i] = mratio*ep[i]/epsum;
+      grproperty[i].m = sqrt(2.0*PI)*ScaleHg/Lz*ep[i]*
+                                   pGrid->Nx[0]*pGrid->Nx[1]*pGrid->Nx[2]/Npar;
+    }
+  }
+  if (gsdmode == 2 && weightmode == 1){ /* custom grain size dist */
+                                        /* using the .m mass parameter */
+    epsum = 0.0;
+    for (i=0; i<npartypes; i++)
+    {
+      ep[i] = gsd_weights[i]; epsum += ep[i];
+    }
+
+    for (i=0; i<npartypes; i++)
+    {
+      ep[i] = mratio*ep[i]/epsum;
+      grproperty[i].m = sqrt(2.0*PI)*ScaleHg/Lz*ep[i]*
+                                   pGrid->Nx[0]*pGrid->Nx[1]*pGrid->Nx[2]/Npar;
+    }
   }
 
-  for (i=0; i<npartypes; i++)
-  {
-    ep[i] = mratio*ep[i]/epsum;
-    grproperty[i].m = sqrt(2.0*PI)*ScaleHg/Lz*ep[i]*
-                                   pGrid->Nx[0]*pGrid->Nx[1]*pGrid->Nx[2]/Npar;
-  }
+
 #else
-  mratio = 0.0;
+ if (gsdmode != 1) {
+      ath_error("[par_strat3d]: Custom sizes only implemented for feedback on.\n");
+ }
+ mratio = 0.0;
   for (i=0; i<npartypes; i++)
     ep[i] = 0.0;
 #endif
@@ -303,9 +326,13 @@ void problem(DomainS *pDomain)
   zmin = pGrid->MinX[2];
   zmax = pGrid->MaxX[2];
 
-  for (q=0; q<Npar; q++) {
+  for (pt=0; pt<npartypes; pt++) {
 
-    for (pt=0; pt<npartypes; pt++) {
+    if ( gsdmode == 2 && weightmode ==2 ){ /* do custom dist via Nparticles */
+      Npar *= gsd_weights[pt];
+    }
+
+    for (q=0; q<Npar; q++) {
 
       x1p = x1min + Lx*ran2(&iseed);
       x2p = x2min + Ly*ran2(&iseed);
@@ -385,7 +412,7 @@ void problem(DomainS *pDomain)
 void read_custom_gsd(int n, Real *tstop, Real *weights)
 {
   FILE *fp;
-  char *gsd_filename = par_gets("problem","cust_gsd_file"); 
+  char *gsd_filename = par_gets("particle","cust_gsd_file"); 
   ath_pout(0,"custom_gsd file opening: %s\n", gsd_filename);
   fp = fopen(gsd_filename,"r");
   if (fp == NULL)  
