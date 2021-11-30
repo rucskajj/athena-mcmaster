@@ -106,7 +106,12 @@ void problem(DomainS *pDomain)
   Real *ep,*gsd_weights,*ScaleHpar,epsum,mratio,pwind,rhoaconv,etavk;
   Real *epsilon,*uxNSH,*uyNSH,**wxNSH,**wyNSH;
   Real rhog,h,x1,x2,x3,t,x1p,x2p,x3p,zmin,zmax,dx3_1,b;
-  long int iseed = myID_Comm_world+10; /* Initialize on the first call to ran2 */
+  long int iseed, iseedpert; /* Initialize on the first call to ran2 */
+
+  iseedpert = par_geti_def("particle","iseedpert",0);
+  iseed = myID_Comm_world+iseed_pert;
+  /* Initialize on the first call to ran2 */
+
 
   if (pDomain->Nx[2] == 1) {
     ath_error("[par_strat3d]: par_strat3d only works for 3D problem.\n");
