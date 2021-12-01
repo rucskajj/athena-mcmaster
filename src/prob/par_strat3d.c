@@ -109,7 +109,7 @@ void problem(DomainS *pDomain)
   long int iseed, iseedpert; /* Initialize on the first call to ran2 */
 
   iseedpert = par_geti_def("particle","iseedpert",0);
-  iseed = myID_Comm_world+iseed_pert;
+  iseed = myID_Comm_world+iseedpert;
   /* Initialize on the first call to ran2 */
 
 
@@ -229,12 +229,26 @@ void problem(DomainS *pDomain)
       alamcoeff = par_getd("problem","alamcoeff");
   }
 
-  /* particle scale height */
-  Hparmax = par_getd("problem","hparmax"); /* in unit of gas scale height */
-  Hparmin = par_getd("problem","hparmin");
-  for (i=0; i<npartypes; i++) 
-    ScaleHpar[i] = Hparmax*
+  if (gsdmode == 2) { /* custom grain size dist */
+    /* particle scale height */
+    Hparmin = par_getd("problem","hparmin");
+    Hparmax = par_getd("problem","hparmax");
+    float Hparfac = (Hparmax/Hparmin) - 1.0;
+    /* This produces a negative linear relationship between Hpar and tstop */
+    for (i=0; i<npartypes; i++) 
+      ScaleHpar[i] = Hparmin * ((Hparfac+1,0) - 
+            Hparfac*(tstop0[i]/tstop0[npartypes-1]));
+   
+  }
+  else {
+    /* particle scale height */
+    Hparmax = par_getd("problem","hparmax"); /* in unit of gas scale height */
+    Hparmin = par_getd("problem","hparmin");
+    for (i=0; i<npartypes; i++) 
+      ScaleHpar[i] = Hparmax*
                    exp(-i*log(Hparmax/Hparmin)/MAX(npartypes-1,1.0));
+  }
+
 
 #ifdef FEEDBACK
   mratio = par_getd_def("problem","mratio",0.0); /* total mass fraction */
