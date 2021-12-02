@@ -233,12 +233,17 @@ void problem(DomainS *pDomain)
     /* particle scale height */
     Hparmin = par_getd("problem","hparmin");
     Hparmax = par_getd("problem","hparmax");
+    if (Hparmax < Hparmin) {
+      ath_error("[par_strat3d]: must have hparmax > hparmin!\n");
+    }
+
     float Hparfac = (Hparmax/Hparmin) - 1.0;
     /* This produces a negative linear relationship between Hpar and tstop */
-    for (i=0; i<npartypes; i++) 
-      ScaleHpar[i] = Hparmin * ((Hparfac+1,0) - 
+    for (i=0; i<npartypes; i++)
+      ScaleHpar[i] = Hparmin * ((Hparfac+1.0) - 
             Hparfac*(tstop0[i]/tstop0[npartypes-1]));
-   
+      //ath_pout(0,"tstop[%d]=%e, ScaleHpar[%d]=%e\n",
+      //i, tstop0[i], i, ScaleHpar[i]);
   }
   else {
     /* particle scale height */
