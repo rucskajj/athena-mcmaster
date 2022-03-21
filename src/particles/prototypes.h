@@ -22,6 +22,7 @@ void advect_particles(DomainS *pD);
 void bvals_particle_init(MeshS *pM);
 void bvals_particle_fun(enum BCDirection dir, VGFun_t prob_bc);
 void bvals_final_particle(MeshS *pM);
+void bvals_particle_destruct(MeshS *pM);
 
 /* dump_particle_history.c */
 void dump_particle_history(MeshS *pM, OutputS *pOut);
